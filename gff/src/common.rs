@@ -71,3 +71,13 @@ pub enum GffFieldValue {
 pub struct GffStruct {
     pub fields: HashMap<String, GffFieldValue>,
 }
+
+/** UnpackStruct trait.
+ *
+ * This trait should be implemented for every structure
+ * that can be unpack from GFF, by deriving gff_derive::DeGFF
+ */
+pub trait UnpackStruct {
+    fn unpack(from: &GffStruct)
+        -> Result<Self, &'static str> where Self: std::marker::Sized;
+}
