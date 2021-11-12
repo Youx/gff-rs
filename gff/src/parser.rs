@@ -13,7 +13,6 @@ use nom::{
     bytes::complete::{ take, take_till },
     combinator::{ map_res, map },
     combinator::map_parser,
-    error::ErrorKind,
     Err,
 };
 
@@ -33,7 +32,7 @@ pub struct GffParser<'a> {
 
 impl <'a> GffParser<'a> {
     pub fn parse(data: Vec<u8>, expected_type: &'a str)
-        -> Result<GffStruct, Err<((), ErrorKind)>>
+        -> Result<GffStruct, Err<nom::error::Error<()>>>
     {
         let parser = GffParser {
             data: data,
@@ -249,7 +248,9 @@ impl <'a> GffParser<'a> {
         let (input, tlk_ref) = le_u32(input)?;
         let (input, str_count) = le_u32(input)?;
 
-        fn parse_substring(data: &[u8]) -> IResult<&[u8], (GffLang, GffGender, String)> {
+        fn parse_substring(data: &[u8])
+            -> IResult<&[u8], (GffLang, GffGender, String)>
+        {
             let (input, (lang, gender)) = map_res(le_u32, |val: u32|
                 -> Result<(GffLang, GffGender), num_enum::TryFromPrimitiveError<_>> {
                     let gender = if val % 2 == 0 { GffGender::Male } else { GffGender::Female };
@@ -266,7 +267,7 @@ impl <'a> GffParser<'a> {
 
         let (input, s) = map_parser(
             take(len as usize),
-            |slice: &[u8]| { count(parse_substring, str_count as usize)(slice) }
+            count(parse_substring, str_count as usize)
         )(input)?;
 
         let mut locs = HashMap::new();
@@ -287,7 +288,7 @@ impl <'a> GffParser<'a> {
         let (input, list_size) = le_u32(input)?;
         let (input, structs) =
             count(map_res(le_u32,
-                    |st_idx: u32| -> Result<GffStruct, Err<(&[u8], nom::error::ErrorKind)>> {
+                    |st_idx: u32| -> Result<GffStruct, Err<nom::error::Error<&[u8]>>> {
                         let (_, val) = self.parse_struct(&header, st_idx)?;
                         Ok(val)
                     }),
@@ -305,8 +306,9 @@ impl <'a> GffParser<'a> {
         let start = header.field_indices.0 + offset;
         let (input, _) = take(start as usize)(input)?;
         let (input, fields) =
-            count(map_res(le_u32, |f_idx: u32| -> Result<(String, GffFieldValue),
-            Err<(&[u8], nom::error::ErrorKind)>> {
+            count(map_res(le_u32, |f_idx: u32|
+                    -> Result<(String, GffFieldValue), Err<nom::error::Error<&[u8]>>>
+            {
                 let (_, val) = self.parse_field(&header, f_idx)?;
                 Ok(val)
             }),
