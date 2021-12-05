@@ -8,6 +8,12 @@ use std::collections::HashMap;
 /** Tuple containing an offset, and a count */
 pub struct OffsetCount (pub u32, pub u32);
 
+impl OffsetCount {
+    pub fn new() -> Self {
+        OffsetCount(0, 0)
+    }
+}
+
 #[derive(Debug)]
 pub struct GffHeader<'a> {
     pub gff_type: &'a str,
@@ -20,6 +26,20 @@ pub struct GffHeader<'a> {
     pub list_indices: OffsetCount,
 }
 
+impl<'a> GffHeader<'a> {
+    pub fn new() -> Self {
+        GffHeader {
+            gff_type: "   ",
+            version: "   ",
+            structs: OffsetCount::new(),
+            fields: OffsetCount::new(),
+            labels: OffsetCount::new(),
+            field_data: OffsetCount::new(),
+            field_indices: OffsetCount::new(),
+            list_indices: OffsetCount::new(),
+        }
+    }
+}
 /* }}} */
 
 #[derive(Debug, std::cmp::Eq, std::cmp::PartialEq,
