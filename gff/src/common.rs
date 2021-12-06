@@ -43,7 +43,8 @@ impl<'a> GffHeader<'a> {
 /* }}} */
 
 #[derive(Debug, std::cmp::Eq, std::cmp::PartialEq,
-    std::hash::Hash, num_enum::TryFromPrimitive)]
+    std::hash::Hash, num_enum::TryFromPrimitive,
+    Copy, Clone)]
 #[repr(u32)]
 pub enum GffLang {
     English      = 0,
@@ -59,7 +60,8 @@ pub enum GffLang {
 }
 
 #[derive(Debug, std::cmp::Eq, std::cmp::PartialEq,
-    std::hash::Hash, num_enum::TryFromPrimitive)]
+    std::hash::Hash, num_enum::TryFromPrimitive,
+    Copy, Clone)]
 #[repr(u8)]
 pub enum GffGender {
     Male = 0,

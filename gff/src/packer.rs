@@ -203,6 +203,41 @@ impl <'a, W: std::io::Write> Packer<'a, W> {
                     Ok(self.data.header.fields.1 - 1)
                 }
             }
+            GffFieldValue::CExoLocString(str_ref, val) => {
+                self.pack_data_offset(12, label_idx);
+
+                // string ref + string count
+                let mut total_len: u32 = 8;
+
+                for ((_lang, _gender), s) in val {
+                    let s_vec = s.as_bytes();
+                    // gender-lang + length + string
+                    total_len += 8 + s_vec.len() as u32;
+                }
+
+                // total data size
+                self.pack_data_u32(total_len);
+                // string ref
+                self.pack_data_u32(*str_ref);
+                // string count
+                self.pack_data_u32(val.len() as u32);
+
+                for ((lang, gender), s) in val {
+                    let s_vec = s.as_bytes();
+                    let gender = *gender as u32;
+                    let lang = *lang as u32;
+                    // gender-lang
+                    self.pack_data_u32(gender + 2 * lang);
+                    // length
+                    self.pack_data_u32(s_vec.len() as u32);
+                    // string
+                    self.data.field_data.extend(s_vec);
+                    self.data.header.field_data.1 += s_vec.len() as u32;
+                }
+
+                Ok(self.data.header.fields.1 - 1)
+            }
+
             _ => Err("Not handled yet")
         }
     }
@@ -239,6 +274,11 @@ impl <'a, W: std::io::Write> Packer<'a, W> {
         self.data.header.field_data.1 += 8;
     }
 
+    fn pack_data_u32(&mut self, val: u32) {
+        self.data.field_data.extend_from_slice(&val.to_le_bytes());
+        self.data.header.field_data.1 += 4;
+    }
+
     /* }}} */
 }
 
@@ -250,6 +290,8 @@ mod tests {
     use crate::common::{
         GffStruct,
         GffFieldValue,
+        GffLang,
+        GffGender,
     };
 
     fn assert_struct_count(packer: &Packer<Vec<u8>>, st_count: usize) {
@@ -400,5 +442,28 @@ mod tests {
             packer.data.field_data,
             vec![4u8, 't' as u8, 'e' as u8, 's' as u8, 't' as u8]
         );
+    }
+
+    #[test]
+    fn test_07_pack_locstr() {
+        let langs = HashMap::from([
+            ((GffLang::English, GffGender::Male), String::from("Hello")),
+            ((GffLang::French, GffGender::Male), String::from("Salut")),
+        ]);
+        let input = GffStruct {
+            fields: HashMap::from([
+                (String::from("field1"),
+                GffFieldValue::CExoLocString(0x1234, langs))
+            ]),
+        };
+        let output = Vec::new();
+        let mut packer = Packer::new(output);
+        packer.pack(&input);
+
+        assert_struct_count(&packer, 1);
+        assert_field_count(&packer, 1);
+        assert_field_indice_count(&packer, 0);
+        assert_label_count(&packer, 1);
+        assert_field_data_count(&packer, 12 + (8 + 5) + (8 + 5));
     }
 }
