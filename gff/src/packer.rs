@@ -196,11 +196,15 @@ impl <'a, W: std::io::Write> Packer<'a, W> {
         self.data.fields.extend_from_slice(val);
     }
 
-    fn pack_val_8(&mut self, ftype: u32, label_idx: u32, val: &[u8; 8]) {
-        let data_offset = self.data.field_data.len();
+    fn pack_data_offset(&mut self, ftype: u32, label_idx: u32) {
+        self.pack_val_4(ftype, label_idx,
+            &(self.data.field_data.len() as u32).to_le_bytes()
+        );
+    }
 
+    fn pack_val_8(&mut self, ftype: u32, label_idx: u32, val: &[u8; 8]) {
+        self.pack_data_offset(ftype, label_idx);
         self.data.field_data.extend_from_slice(val);
-        self.pack_val_4(ftype, label_idx, &(data_offset as u32).to_le_bytes());
         self.data.header.field_data.1 += 8;
     }
 
