@@ -172,6 +172,20 @@ impl <'a, W: std::io::Write> Packer<'a, W> {
                 self.pack_val_8(9, label_idx, &val.to_le_bytes());
                 Ok(self.data.header.fields.1 - 1)
             }
+            GffFieldValue::CExoString(s) => {
+                self.pack_data_offset(10, label_idx);
+
+                let str_data = s.as_bytes();
+                self.data.field_data.extend_from_slice(
+                    &(str_data.len() as u32).to_le_bytes()
+                );
+                self.data.header.field_data.1 += 4;
+                self.data.field_data.extend_from_slice(
+                    &str_data
+                );
+                self.data.header.field_data.1 += str_data.len() as u32;
+                Ok(self.data.header.fields.1 - 1)
+            }
             _ => Err("Not handled yet")
         }
     }
@@ -322,5 +336,29 @@ mod tests {
         assert_field_indice_count(&packer, 3);
         assert_label_count(&packer, 3);
         assert_field_data_count(&packer, 8 * 3);
+    }
+
+    #[test]
+    fn test_05_pack_simple_string() {
+        let input = GffStruct {
+            fields: HashMap::from([
+                (String::from("field1"),
+                 GffFieldValue::CExoString(String::from("test"))),
+            ]),
+        };
+        let output = Vec::new();
+        let mut packer = Packer::new(output);
+        packer.pack(&input);
+
+        assert_struct_count(&packer, 1);
+        assert_field_count(&packer, 1);
+        assert_field_indice_count(&packer, 0);
+        assert_label_count(&packer, 1);
+        assert_field_data_count(&packer, 4 + 4);
+        assert_eq!(
+            packer.data.field_data,
+            vec![4u8, 0, 0, 0,
+                't' as u8, 'e' as u8, 's' as u8, 't' as u8]
+        );
     }
 }
