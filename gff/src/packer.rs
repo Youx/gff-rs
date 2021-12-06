@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::io::Write;
+
 use crate::common::{
     GffHeader,
     GffStruct,
@@ -44,6 +46,60 @@ impl <'a, 'b, W: std::io::Write> Packer<'a, W> {
         }
     }
 
+    /* write offsets into header */
+    fn finalize(&mut self) {
+        let mut offset = 14 * 4;
+
+        self.data.header.structs.0 = offset;
+        assert_eq!(self.data.header.structs.1 * 12, self.data.structs.len() as u32);
+        offset += self.data.structs.len() as u32;
+
+        self.data.header.fields.0 = offset;
+        assert_eq!(self.data.header.fields.1 * 12, self.data.fields.len() as u32);
+        offset += self.data.fields.len() as u32;
+
+        self.data.header.labels.0 = offset;
+        assert_eq!(self.data.header.labels.1 * 16, self.data.labels.len() as u32);
+        offset += self.data.labels.len() as u32;
+
+        self.data.header.field_data.0 = offset;
+        assert_eq!(self.data.header.field_data.1, self.data.field_data.len() as u32);
+        offset += self.data.field_data.len() as u32;
+
+        self.data.header.field_indices.0 = offset;
+        assert_eq!(self.data.header.field_indices.1, self.data.field_indices.len() as u32);
+        offset += self.data.field_indices.len() as u32;
+
+        self.data.header.list_indices.0 = offset;
+        assert_eq!(self.data.header.list_indices.1, self.data.list_indices.len() as u32);
+        offset += self.data.list_indices.len() as u32;
+    }
+
+    fn write(&mut self) {
+        /* write header */
+        self.writer.write(&self.data.header.gff_type.as_bytes());
+        self.writer.write(&self.data.header.version.as_bytes());
+        self.writer.write(&self.data.header.structs.0.to_le_bytes());
+        self.writer.write(&self.data.header.structs.1.to_le_bytes());
+        self.writer.write(&self.data.header.fields.0.to_le_bytes());
+        self.writer.write(&self.data.header.fields.1.to_le_bytes());
+        self.writer.write(&self.data.header.labels.0.to_le_bytes());
+        self.writer.write(&self.data.header.labels.1.to_le_bytes());
+        self.writer.write(&self.data.header.field_data.0.to_le_bytes());
+        self.writer.write(&self.data.header.field_data.1.to_le_bytes());
+        self.writer.write(&self.data.header.field_indices.0.to_le_bytes());
+        self.writer.write(&self.data.header.field_indices.1.to_le_bytes());
+        self.writer.write(&self.data.header.list_indices.0.to_le_bytes());
+        self.writer.write(&self.data.header.list_indices.1.to_le_bytes());
+
+        self.writer.write(&self.data.structs);
+        self.writer.write(&self.data.fields);
+        self.writer.write(&self.data.labels);
+        self.writer.write(&self.data.field_data);
+        self.writer.write(&self.data.field_indices);
+        self.writer.write(&self.data.list_indices);
+    }
+
     /* {{{ Pack functions */
     pub fn pack(&mut self, input: &'b GffStruct)
         -> Result<(), &'static str>
@@ -59,6 +115,10 @@ impl <'a, 'b, W: std::io::Write> Packer<'a, W> {
             let struct_to_write = structs.remove(0);
             self.pack_struct(&struct_to_write, &mut structs, &mut current_st_idx)?;
         }
+
+        self.finalize();
+        self.write();
+
         Ok(())
     }
 
@@ -104,7 +164,7 @@ impl <'a, 'b, W: std::io::Write> Packer<'a, W> {
                 self.data.field_indices.extend_from_slice(
                     &(field_indice as u32).to_le_bytes()
                 );
-                self.data.header.field_indices.1 += 1;
+                self.data.header.field_indices.1 += 4;
             }
         }
         Ok(())
@@ -351,7 +411,7 @@ mod tests {
         assert_eq!(packer.data.fields.len(), f_count * 12);
     }
     fn assert_field_indice_count(packer: &Packer<Vec<u8>>, fi_count: usize) {
-        assert_eq!(packer.data.header.field_indices.1, fi_count as u32);
+        assert_eq!(packer.data.header.field_indices.1, fi_count as u32 * 4);
         // 1 DWORDS per field
         assert_eq!(packer.data.field_indices.len(), fi_count * 4);
     }
@@ -534,6 +594,8 @@ mod tests {
         assert_field_indice_count(&packer, 0);
         assert_label_count(&packer, 1);
         assert_field_data_count(&packer, 4 + 4);
+        assert_eq!(packer.data.field_data,
+            vec![0x04, 0x00, 0x00, 0x00, 't' as u8, 'e' as u8, 's' as u8, 't' as u8]);
     }
 
     #[test]
