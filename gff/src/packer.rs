@@ -237,6 +237,14 @@ impl <'a, W: std::io::Write> Packer<'a, W> {
 
                 Ok(self.data.header.fields.1 - 1)
             }
+            GffFieldValue::Void(val) => {
+                self.pack_data_offset(13, label_idx);
+
+                self.pack_data_u32(val.len() as u32);
+                self.data.field_data.extend_from_slice(val);
+                self.data.header.field_data.1 += val.len() as u32;
+                Ok(self.data.header.fields.1 - 1)
+            }
 
             _ => Err("Not handled yet")
         }
@@ -465,5 +473,24 @@ mod tests {
         assert_field_indice_count(&packer, 0);
         assert_label_count(&packer, 1);
         assert_field_data_count(&packer, 12 + (8 + 5) + (8 + 5));
+    }
+
+    #[test]
+    fn test_08_pack_void() {
+        let input = GffStruct {
+            fields: HashMap::from([
+                (String::from("field1"),
+                GffFieldValue::Void(b"test".to_vec()))
+            ]),
+        };
+        let output = Vec::new();
+        let mut packer = Packer::new(output);
+        packer.pack(&input);
+
+        assert_struct_count(&packer, 1);
+        assert_field_count(&packer, 1);
+        assert_field_indice_count(&packer, 0);
+        assert_label_count(&packer, 1);
+        assert_field_data_count(&packer, 4 + 4);
     }
 }
