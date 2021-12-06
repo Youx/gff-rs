@@ -269,6 +269,17 @@ impl <'a, 'b, W: std::io::Write> Packer<'a, W> {
                 structs.push(&st);
                 Ok(self.data.header.fields.1 - 1)
             }
+            GffFieldValue::List(vec) => {
+                self.pack_val_4(15, label_idx,
+                    &self.data.header.list_indices.1.to_le_bytes());
+                self.pack_list_u32(vec.len() as u32);
+                for st in vec {
+                    *current_st_idx += 1;
+                    self.pack_list_u32(*current_st_idx);
+                    structs.push(&st);
+                }
+                Ok(self.data.header.fields.1 - 1)
+            }
             _ => Err("Not handled yet")
         }
     }
@@ -310,6 +321,11 @@ impl <'a, 'b, W: std::io::Write> Packer<'a, W> {
         self.data.header.field_data.1 += 4;
     }
 
+    fn pack_list_u32(&mut self, val: u32) {
+        self.data.list_indices.extend_from_slice(&val.to_le_bytes());
+        self.data.header.list_indices.1 += 4;
+    }
+
     /* }}} */
 }
 
@@ -348,6 +364,10 @@ mod tests {
     fn assert_field_data_count(packer: &Packer<Vec<u8>>, fd_count: usize) {
         assert_eq!(packer.data.header.field_data.1, fd_count as u32);
         assert_eq!(packer.data.field_data.len(), fd_count);
+    }
+    fn assert_list_count(packer: &Packer<Vec<u8>>, bytes: usize) {
+        assert_eq!(packer.data.header.list_indices.1, bytes as u32);
+        assert_eq!(packer.data.list_indices.len(), bytes);
     }
 
     #[test]
@@ -538,5 +558,34 @@ mod tests {
         assert_field_indice_count(&packer, 0);
         assert_label_count(&packer, 2);
         assert_field_data_count(&packer, 0);
+    }
+    #[test]
+    fn test_10_pack_list() {
+        let sub1 = GffStruct {
+            fields: HashMap::from([
+                (String::from("subfield1"), GffFieldValue::Byte(1))
+            ]),
+        };
+        let sub2 = GffStruct {
+            fields: HashMap::from([
+                (String::from("subfield2"), GffFieldValue::Byte(2))
+            ]),
+        };
+        let input = GffStruct {
+            fields: HashMap::from([
+                (String::from("field1"),
+                GffFieldValue::List(vec![sub1, sub2]))
+            ]),
+        };
+        let output = Vec::new();
+        let mut packer = Packer::new(output);
+        packer.pack(&input).unwrap();
+
+        assert_struct_count(&packer, 3);
+        assert_field_count(&packer, 3);
+        assert_field_indice_count(&packer, 0);
+        assert_label_count(&packer, 3);
+        assert_field_data_count(&packer, 0);
+        assert_list_count(&packer, 4 * 3); // 1 u32 for size, 2 for structs
     }
 }
