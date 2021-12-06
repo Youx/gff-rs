@@ -35,7 +35,7 @@ impl PackData<'_> {
     }
 }
 
-impl <'a, W: std::io::Write> Packer<'a, W> {
+impl <'a, 'b, W: std::io::Write> Packer<'a, W> {
     pub fn new(writer: W) -> Packer<'a, W> {
         Packer {
             writer: std::io::BufWriter::new(writer),
@@ -45,12 +45,26 @@ impl <'a, W: std::io::Write> Packer<'a, W> {
     }
 
     /* {{{ Pack functions */
-    pub fn pack(&mut self, input: &GffStruct) {
-        self.pack_struct(input).unwrap();
+    pub fn pack(&mut self, input: &'b GffStruct)
+        -> Result<(), &'static str>
+    {
+        let mut structs: Vec<&GffStruct> = vec![input];
+        let mut current_st_idx = 0;
+
+        loop {
+            let st_count = structs.len();
+            if st_count == 0 {
+                break;
+            }
+            let struct_to_write = structs.remove(0);
+            self.pack_struct(&struct_to_write, &mut structs, &mut current_st_idx)?;
+        }
+        Ok(())
     }
 
-    fn pack_struct(&mut self, input: &GffStruct)
-    -> Result<(), &'static str>
+    fn pack_struct(&mut self, input: &'b GffStruct,
+        structs: &mut Vec<&'b GffStruct>, current_st_idx: &mut u32)
+        -> Result<(), &'static str>
     {
         /* write struct type */
         self.data.structs.extend_from_slice(&0u32.to_le_bytes());
@@ -73,11 +87,13 @@ impl <'a, W: std::io::Write> Packer<'a, W> {
                 );
             }
         };
-        self.data.header.structs.1 += 1;
 
+        self.data.header.structs.1 += 1;
         let mut field_indices = vec![];
         for (field, value) in &input.fields {
-            let field_id = self.pack_field(&field, &value)?;
+            let field_id = self.pack_field(
+                &field, &value, structs, current_st_idx
+            )?;
 
             field_indices.push(field_id);
         }
@@ -123,8 +139,8 @@ impl <'a, W: std::io::Write> Packer<'a, W> {
         Ok(*label_idx)
     }
 
-    fn pack_field(&mut self, field_name: &String,
-                  field_value: &GffFieldValue)
+    fn pack_field(&mut self, field_name: &String, field_value: &'b GffFieldValue,
+        structs: &mut Vec<&'b GffStruct>, current_st_idx: &mut u32)
         -> Result<u32, &'static str>
     {
         let label_idx = self.pack_label(field_name)?;
@@ -245,7 +261,14 @@ impl <'a, W: std::io::Write> Packer<'a, W> {
                 self.data.header.field_data.1 += val.len() as u32;
                 Ok(self.data.header.fields.1 - 1)
             }
-
+            GffFieldValue::Struct(st) => {
+                *current_st_idx += 1;
+                self.pack_val_4(14, label_idx,
+                    &(*current_st_idx).to_le_bytes()
+                );
+                structs.push(&st);
+                Ok(self.data.header.fields.1 - 1)
+            }
             _ => Err("Not handled yet")
         }
     }
@@ -492,5 +515,28 @@ mod tests {
         assert_field_indice_count(&packer, 0);
         assert_label_count(&packer, 1);
         assert_field_data_count(&packer, 4 + 4);
+    }
+
+    #[test]
+    fn test_09_pack_sub_struct() {
+        let input = GffStruct {
+            fields: HashMap::from([
+                (String::from("subfield1"), GffFieldValue::Byte(1))
+            ]),
+        };
+        let input = GffStruct {
+            fields: HashMap::from([
+                (String::from("field1"), GffFieldValue::Struct(input))
+            ]),
+        };
+        let output = Vec::new();
+        let mut packer = Packer::new(output);
+        packer.pack(&input);
+
+        assert_struct_count(&packer, 2);
+        assert_field_count(&packer, 2);
+        assert_field_indice_count(&packer, 0);
+        assert_label_count(&packer, 2);
+        assert_field_data_count(&packer, 0);
     }
 }
