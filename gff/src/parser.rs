@@ -163,6 +163,11 @@ impl <'a> GffParser<'a> {
                 let (_, val) = self.parse_cexosloctring(&header, offset)?;
                 val
             }
+            13 => {
+                let (_, offset) = le_u32(input)?;
+                let (_, val) = self.parse_void(&header, offset)?;
+                val
+            }
             14 => {
                 let (_, st_idx) = le_u32(input)?;
                 let (_, val) = self.parse_struct(&header, st_idx)?;
@@ -266,7 +271,7 @@ impl <'a> GffParser<'a> {
         }
 
         let (input, s) = map_parser(
-            take(len as usize),
+            take(len as usize - 8),
             count(parse_substring, str_count as usize)
         )(input)?;
 
@@ -275,6 +280,17 @@ impl <'a> GffParser<'a> {
             locs.insert((lang, gender), subs);
         }
         Ok((input, GffFieldValue::CExoLocString(tlk_ref, locs)))
+    }
+
+    fn parse_void(&self, header: &GffHeader, offset:u32)
+        -> IResult<&[u8], GffFieldValue>
+    {
+        let input :&[u8] = &self.data;
+        let start = header.field_data.0 + offset;
+        let (input, _) = take(start as usize)(input)?;
+        let (input, len) = le_u32(input)?;
+        let (input, data) = take(len as usize)(input)?;
+        Ok((input, GffFieldValue::Void(data.to_vec())))
     }
 
     fn parse_list(&self, header: &GffHeader, offset: u32)
