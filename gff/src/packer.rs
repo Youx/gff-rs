@@ -16,7 +16,7 @@ struct PackData<'a> {
 }
 
 pub struct Packer<'a, W: std::io::Write> {
-    writer: std::io::BufWriter<W>,
+    pub writer: std::io::BufWriter<W>,
     labels: HashMap<String, u32>,
     data: PackData<'a>,
 }

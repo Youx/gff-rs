@@ -42,7 +42,7 @@ impl<'a> GffHeader<'a> {
 }
 /* }}} */
 
-#[derive(Debug, std::cmp::Eq, std::cmp::PartialEq,
+#[derive(Debug, std::cmp::Eq, PartialEq,
     std::hash::Hash, num_enum::TryFromPrimitive,
     Copy, Clone)]
 #[repr(u32)]
@@ -59,7 +59,7 @@ pub enum GffLang {
     Japanese     = 131,
 }
 
-#[derive(Debug, std::cmp::Eq, std::cmp::PartialEq,
+#[derive(Debug, std::cmp::Eq, PartialEq,
     std::hash::Hash, num_enum::TryFromPrimitive,
     Copy, Clone)]
 #[repr(u8)]
@@ -68,7 +68,7 @@ pub enum GffGender {
     Female = 1,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum GffFieldValue {
     Byte(u8),
     CExoLocString(u32, HashMap<(GffLang, GffGender), String>),
@@ -89,7 +89,7 @@ pub enum GffFieldValue {
     Invalid,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct GffStruct {
     pub fields: HashMap<String, GffFieldValue>,
 }
