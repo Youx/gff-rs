@@ -156,8 +156,20 @@ impl <'a, W: std::io::Write> Packer<'a, W> {
                 self.pack_val_4(5, label_idx, &val.to_le_bytes());
                 Ok(self.data.header.fields.1 - 1)
             }
+            GffFieldValue::DWord64(val) => {
+                self.pack_val_8(6, label_idx, &val.to_le_bytes());
+                Ok(self.data.header.fields.1 - 1)
+            }
+            GffFieldValue::Int64(val) => {
+                self.pack_val_8(7, label_idx, &val.to_le_bytes());
+                Ok(self.data.header.fields.1 - 1)
+            }
             GffFieldValue::Float(val) => {
                 self.pack_val_4(8, label_idx, &val.to_le_bytes());
+                Ok(self.data.header.fields.1 - 1)
+            }
+            GffFieldValue::Double(val) => {
+                self.pack_val_8(9, label_idx, &val.to_le_bytes());
                 Ok(self.data.header.fields.1 - 1)
             }
             _ => Err("Not handled yet")
@@ -182,6 +194,14 @@ impl <'a, W: std::io::Write> Packer<'a, W> {
         self.data.fields.extend_from_slice(&ftype.to_le_bytes());
         self.data.fields.extend_from_slice(&label_idx.to_le_bytes());
         self.data.fields.extend_from_slice(val);
+    }
+
+    fn pack_val_8(&mut self, ftype: u32, label_idx: u32, val: &[u8; 8]) {
+        let data_offset = self.data.field_data.len();
+
+        self.data.field_data.extend_from_slice(val);
+        self.pack_val_4(ftype, label_idx, &(data_offset as u32).to_le_bytes());
+        self.data.header.field_data.1 += 8;
     }
 
     /* }}} */
@@ -216,6 +236,10 @@ mod tests {
         assert_eq!(packer.data.header.labels.1, l_count as u32);
         // 16 bytes per label
         assert_eq!(packer.data.labels.len(), l_count * 16);
+    }
+    fn assert_field_data_count(packer: &Packer<Vec<u8>>, fd_count: usize) {
+        assert_eq!(packer.data.header.field_data.1, fd_count as u32);
+        assert_eq!(packer.data.field_data.len(), fd_count);
     }
 
     #[test]
@@ -274,5 +298,25 @@ mod tests {
         assert_field_count(&packer, 7);
         assert_field_indice_count(&packer, 7);
         assert_label_count(&packer, 7);
+    }
+
+    #[test]
+    fn test_04_pack_all_8_byte_fields() {
+        let input = GffStruct {
+            fields: HashMap::from([
+                (String::from("field1"), GffFieldValue::DWord64(1)),
+                (String::from("field2"), GffFieldValue::Int64(2)),
+                (String::from("field3"), GffFieldValue::Double(3.3)),
+            ]),
+        };
+        let output = Vec::new();
+        let mut packer = Packer::new(output);
+        packer.pack(&input);
+        /* header indicates 1 struct stored */
+        assert_struct_count(&packer, 1);
+        assert_field_count(&packer, 3);
+        assert_field_indice_count(&packer, 3);
+        assert_label_count(&packer, 3);
+        assert_field_data_count(&packer, 8 * 3);
     }
 }
