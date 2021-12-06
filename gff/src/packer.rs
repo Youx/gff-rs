@@ -250,7 +250,6 @@ impl <'a, 'b, W: std::io::Write> Packer<'a, W> {
                     self.data.field_data.extend(s_vec);
                     self.data.header.field_data.1 += s_vec.len() as u32;
                 }
-
                 Ok(self.data.header.fields.1 - 1)
             }
             GffFieldValue::Void(val) => {
@@ -379,7 +378,7 @@ mod tests {
         };
         let output = Vec::new();
         let mut packer = Packer::new(output);
-        packer.pack(&input);
+        packer.pack(&input).unwrap();
 
         assert_struct_count(&packer, 1);
         assert_field_count(&packer, 1);
@@ -397,7 +396,7 @@ mod tests {
         };
         let output = Vec::new();
         let mut packer = Packer::new(output);
-        packer.pack(&input);
+        packer.pack(&input).unwrap();
         /* header indicates 1 struct stored */
         assert_struct_count(&packer, 1);
         assert_field_count(&packer, 2);
@@ -420,7 +419,7 @@ mod tests {
         };
         let output = Vec::new();
         let mut packer = Packer::new(output);
-        packer.pack(&input);
+        packer.pack(&input).unwrap();
         /* header indicates 1 struct stored */
         assert_struct_count(&packer, 1);
         assert_field_count(&packer, 7);
@@ -439,7 +438,7 @@ mod tests {
         };
         let output = Vec::new();
         let mut packer = Packer::new(output);
-        packer.pack(&input);
+        packer.pack(&input).unwrap();
         /* header indicates 1 struct stored */
         assert_struct_count(&packer, 1);
         assert_field_count(&packer, 3);
@@ -458,7 +457,7 @@ mod tests {
         };
         let output = Vec::new();
         let mut packer = Packer::new(output);
-        packer.pack(&input);
+        packer.pack(&input).unwrap();
 
         assert_struct_count(&packer, 1);
         assert_field_count(&packer, 1);
@@ -482,7 +481,7 @@ mod tests {
         };
         let output = Vec::new();
         let mut packer = Packer::new(output);
-        packer.pack(&input);
+        packer.pack(&input).unwrap();
 
         assert_struct_count(&packer, 1);
         assert_field_count(&packer, 1);
@@ -509,7 +508,7 @@ mod tests {
         };
         let output = Vec::new();
         let mut packer = Packer::new(output);
-        packer.pack(&input);
+        packer.pack(&input).unwrap();
 
         assert_struct_count(&packer, 1);
         assert_field_count(&packer, 1);
@@ -528,7 +527,7 @@ mod tests {
         };
         let output = Vec::new();
         let mut packer = Packer::new(output);
-        packer.pack(&input);
+        packer.pack(&input).unwrap();
 
         assert_struct_count(&packer, 1);
         assert_field_count(&packer, 1);
@@ -551,7 +550,7 @@ mod tests {
         };
         let output = Vec::new();
         let mut packer = Packer::new(output);
-        packer.pack(&input);
+        packer.pack(&input).unwrap();
 
         assert_struct_count(&packer, 2);
         assert_field_count(&packer, 2);
