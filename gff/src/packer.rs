@@ -186,6 +186,23 @@ impl <'a, W: std::io::Write> Packer<'a, W> {
                 self.data.header.field_data.1 += str_data.len() as u32;
                 Ok(self.data.header.fields.1 - 1)
             }
+            GffFieldValue::CResRef(s) => {
+                self.pack_data_offset(11, label_idx);
+
+                let s = s.to_lowercase();
+                let str_data = s.as_bytes();
+                if str_data.len() > 16 {
+                    Err("ResRef too long")
+                } else {
+                    self.data.field_data.push(str_data.len() as u8);
+                    self.data.header.field_data.1 += 1;
+                    self.data.field_data.extend_from_slice(
+                        &str_data
+                    );
+                    self.data.header.field_data.1 += str_data.len() as u32;
+                    Ok(self.data.header.fields.1 - 1)
+                }
+            }
             _ => Err("Not handled yet")
         }
     }
@@ -359,6 +376,29 @@ mod tests {
             packer.data.field_data,
             vec![4u8, 0, 0, 0,
                 't' as u8, 'e' as u8, 's' as u8, 't' as u8]
+        );
+    }
+
+    #[test]
+    fn test_06_pack_resref() {
+        let input = GffStruct {
+            fields: HashMap::from([
+                (String::from("field1"),
+                 GffFieldValue::CResRef(String::from("TeSt"))),
+            ]),
+        };
+        let output = Vec::new();
+        let mut packer = Packer::new(output);
+        packer.pack(&input);
+
+        assert_struct_count(&packer, 1);
+        assert_field_count(&packer, 1);
+        assert_field_indice_count(&packer, 0);
+        assert_label_count(&packer, 1);
+        assert_field_data_count(&packer, 1 + 4);
+        assert_eq!(
+            packer.data.field_data,
+            vec![4u8, 't' as u8, 'e' as u8, 's' as u8, 't' as u8]
         );
     }
 }
