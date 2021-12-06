@@ -133,20 +133,55 @@ impl <'a, W: std::io::Write> Packer<'a, W> {
 
         match field_value {
             GffFieldValue::Byte(val) => {
-                self.data.fields.extend_from_slice(
-                    &(0 as u32).to_le_bytes()
-                );
-                self.data.fields.extend_from_slice(
-                    &(label_idx as u32).to_le_bytes()
-                );
-                self.data.fields.push(*val);
-                self.data.fields.extend_from_slice(
-                    &[0u8; 3]
-                );
-                Ok(self.data.header.fields.1)
+                self.pack_val_1(0, label_idx, *val);
+                Ok(self.data.header.fields.1 - 1)
+            }
+            GffFieldValue::Char(val) => {
+                self.pack_val_1(1, label_idx, *val as u8);
+                Ok(self.data.header.fields.1 - 1)
+            }
+            GffFieldValue::Word(val) => {
+                self.pack_val_2(2, label_idx, &val.to_le_bytes());
+                Ok(self.data.header.fields.1 - 1)
+            }
+            GffFieldValue::Short(val) => {
+                self.pack_val_2(3, label_idx, &val.to_le_bytes());
+                Ok(self.data.header.fields.1 - 1)
+            }
+            GffFieldValue::DWord(val) => {
+                self.pack_val_4(4, label_idx, &val.to_le_bytes());
+                Ok(self.data.header.fields.1 - 1)
+            }
+            GffFieldValue::Int(val) => {
+                self.pack_val_4(5, label_idx, &val.to_le_bytes());
+                Ok(self.data.header.fields.1 - 1)
+            }
+            GffFieldValue::Float(val) => {
+                self.pack_val_4(8, label_idx, &val.to_le_bytes());
+                Ok(self.data.header.fields.1 - 1)
             }
             _ => Err("Not handled yet")
         }
+    }
+
+    fn pack_val_1(&mut self, ftype: u32, label_idx: u32, val: u8) {
+        self.data.fields.extend_from_slice(&ftype.to_le_bytes());
+        self.data.fields.extend_from_slice(&label_idx.to_le_bytes());
+        self.data.fields.push(val);
+        self.data.fields.extend_from_slice(&[0u8; 3]);
+    }
+
+    fn pack_val_2(&mut self, ftype: u32, label_idx: u32, val: &[u8; 2]) {
+        self.data.fields.extend_from_slice(&ftype.to_le_bytes());
+        self.data.fields.extend_from_slice(&label_idx.to_le_bytes());
+        self.data.fields.extend_from_slice(val);
+        self.data.fields.extend_from_slice(&[0u8; 2]);
+    }
+
+    fn pack_val_4(&mut self, ftype: u32, label_idx: u32, val: &[u8; 4]) {
+        self.data.fields.extend_from_slice(&ftype.to_le_bytes());
+        self.data.fields.extend_from_slice(&label_idx.to_le_bytes());
+        self.data.fields.extend_from_slice(val);
     }
 
     /* }}} */
@@ -216,5 +251,28 @@ mod tests {
         assert_field_count(&packer, 2);
         assert_field_indice_count(&packer, 2);
         assert_label_count(&packer, 2);
+    }
+
+    #[test]
+    fn test_03_pack_all_simple_fields() {
+        let input = GffStruct {
+            fields: HashMap::from([
+                (String::from("field1"), GffFieldValue::Byte(1)),
+                (String::from("field2"), GffFieldValue::Char(2)),
+                (String::from("field3"), GffFieldValue::Word(3)),
+                (String::from("field4"), GffFieldValue::Short(4)),
+                (String::from("field5"), GffFieldValue::DWord(5)),
+                (String::from("field6"), GffFieldValue::Int(6)),
+                (String::from("field7"), GffFieldValue::Float(7.7)),
+            ]),
+        };
+        let output = Vec::new();
+        let mut packer = Packer::new(output);
+        packer.pack(&input);
+        /* header indicates 1 struct stored */
+        assert_struct_count(&packer, 1);
+        assert_field_count(&packer, 7);
+        assert_field_indice_count(&packer, 7);
+        assert_label_count(&packer, 7);
     }
 }
