@@ -252,14 +252,8 @@ impl <'a, 'b, W: std::io::Write> Packer<'a, W> {
                 self.pack_data_offset(10, label_idx);
 
                 let str_data = s.as_bytes();
-                self.data.field_data.extend_from_slice(
-                    &(str_data.len() as u32).to_le_bytes()
-                );
-                self.data.header.field_data.1 += 4;
-                self.data.field_data.extend_from_slice(
-                    &str_data
-                );
-                self.data.header.field_data.1 += str_data.len() as u32;
+                self.pack_data_u32(str_data.len() as u32);
+                self.pack_data_slice(&str_data);
                 Ok(self.data.header.fields.1 - 1)
             }
             GffFieldValue::CResRef(s) => {
@@ -272,10 +266,7 @@ impl <'a, 'b, W: std::io::Write> Packer<'a, W> {
                 } else {
                     self.data.field_data.push(str_data.len() as u8);
                     self.data.header.field_data.1 += 1;
-                    self.data.field_data.extend_from_slice(
-                        &str_data
-                    );
-                    self.data.header.field_data.1 += str_data.len() as u32;
+                    self.pack_data_slice(&str_data);
                     Ok(self.data.header.fields.1 - 1)
                 }
             }
@@ -307,8 +298,8 @@ impl <'a, 'b, W: std::io::Write> Packer<'a, W> {
                     // length
                     self.pack_data_u32(s_vec.len() as u32);
                     // string
-                    self.data.field_data.extend(s_vec);
-                    self.data.header.field_data.1 += s_vec.len() as u32;
+                    self.pack_data_slice(s_vec);
+
                 }
                 Ok(self.data.header.fields.1 - 1)
             }
@@ -316,8 +307,7 @@ impl <'a, 'b, W: std::io::Write> Packer<'a, W> {
                 self.pack_data_offset(13, label_idx);
 
                 self.pack_data_u32(val.len() as u32);
-                self.data.field_data.extend_from_slice(val);
-                self.data.header.field_data.1 += val.len() as u32;
+                self.pack_data_slice(val);
                 Ok(self.data.header.fields.1 - 1)
             }
             GffFieldValue::Struct(st) => {
@@ -378,6 +368,10 @@ impl <'a, 'b, W: std::io::Write> Packer<'a, W> {
     fn pack_data_u32(&mut self, val: u32) {
         self.data.field_data.extend_from_slice(&val.to_le_bytes());
         self.data.header.field_data.1 += 4;
+    }
+    fn pack_data_slice(&mut self, val: &[u8]) {
+        self.data.field_data.extend_from_slice(val);
+        self.data.header.field_data.1 += val.len() as u32;
     }
 
     fn pack_list_u32(&mut self, val: u32) {
