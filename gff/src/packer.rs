@@ -128,7 +128,14 @@ impl <'b, W: std::io::Write> Packer<W> {
         /* write struct type */
         self.data.structs.extend_from_slice(&0u32.to_le_bytes());
         match input.fields.len() {
-            0 => return Err("struct must contain at least one field"),
+            0 => {
+                self.data.structs.extend_from_slice(
+                    &(self.data.header.fields.1 as u32).to_le_bytes()
+                );
+                self.data.structs.extend_from_slice(
+                    &0u32.to_le_bytes()
+                );
+            },
             1 => {
                 self.data.structs.extend_from_slice(
                     &(self.data.header.fields.1 as u32).to_le_bytes()
