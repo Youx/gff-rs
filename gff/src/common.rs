@@ -89,9 +89,22 @@ pub enum GffFieldValue {
     Invalid,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 pub struct GffStruct {
     pub fields: HashMap<String, GffFieldValue>,
+}
+
+impl std::fmt::Debug for GffStruct {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut keys = self.fields.keys().collect::<Vec<&String>>();
+        keys.sort();
+        let mut res = f.debug_struct("GffStruct");
+
+        for key in keys {
+            res.field(key, &*self.fields.get(key).unwrap());
+        }
+        res.finish()
+    }
 }
 
 /** UnpackStruct trait.
