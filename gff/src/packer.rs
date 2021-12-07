@@ -7,8 +7,8 @@ use crate::common::{
     GffFieldValue,
 };
 
-struct PackData<'a> {
-    header: GffHeader<'a>,
+struct PackData {
+    header: GffHeader,
     structs: Vec<u8>,
     fields: Vec<u8>,
     labels: Vec<u8>,
@@ -17,13 +17,13 @@ struct PackData<'a> {
     list_indices: Vec<u8>,
 }
 
-pub struct Packer<'a, W: std::io::Write> {
+pub struct Packer<W: std::io::Write> {
     pub writer: std::io::BufWriter<W>,
     labels: HashMap<String, u32>,
-    data: PackData<'a>,
+    data: PackData,
 }
 
-impl PackData<'_> {
+impl PackData {
     fn new() -> Self {
         PackData {
             header: GffHeader::new(),
@@ -37,8 +37,8 @@ impl PackData<'_> {
     }
 }
 
-impl <'a, 'b, W: std::io::Write> Packer<'a, W> {
-    pub fn new(writer: W) -> Packer<'a, W> {
+impl <'b, W: std::io::Write> Packer<W> {
+    pub fn new(writer: W) -> Packer<W> {
         Packer {
             writer: std::io::BufWriter::new(writer),
             labels: HashMap::new(),
@@ -72,13 +72,12 @@ impl <'a, 'b, W: std::io::Write> Packer<'a, W> {
 
         self.data.header.list_indices.0 = offset;
         assert_eq!(self.data.header.list_indices.1, self.data.list_indices.len() as u32);
-        offset += self.data.list_indices.len() as u32;
     }
 
     fn write(&mut self) {
         /* write header */
-        self.writer.write(&self.data.header.gff_type.as_bytes());
-        self.writer.write(&self.data.header.version.as_bytes());
+        self.writer.write(&self.data.header.gff_type);
+        self.writer.write(&self.data.header.version);
         self.writer.write(&self.data.header.structs.0.to_le_bytes());
         self.writer.write(&self.data.header.structs.1.to_le_bytes());
         self.writer.write(&self.data.header.fields.0.to_le_bytes());

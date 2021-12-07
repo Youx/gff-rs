@@ -15,9 +15,9 @@ impl OffsetCount {
 }
 
 #[derive(Debug)]
-pub struct GffHeader<'a> {
-    pub gff_type: &'a str,
-    pub version: &'a str,
+pub struct GffHeader {
+    pub gff_type: [u8; 4],
+    pub version: [u8; 4],
     pub structs: OffsetCount,
     pub fields: OffsetCount,
     pub labels: OffsetCount,
@@ -26,11 +26,11 @@ pub struct GffHeader<'a> {
     pub list_indices: OffsetCount,
 }
 
-impl<'a> GffHeader<'a> {
+impl GffHeader {
     pub fn new() -> Self {
         GffHeader {
-            gff_type: "   ",
-            version: "   ",
+            gff_type: *b"    ",
+            version: *b"V3.2",
             structs: OffsetCount::new(),
             fields: OffsetCount::new(),
             labels: OffsetCount::new(),
