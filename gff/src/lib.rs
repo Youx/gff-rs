@@ -1,3 +1,5 @@
+extern crate encoding_rs;
+
 pub mod common;
 pub mod deserialize;
 pub mod parser;
@@ -16,16 +18,18 @@ mod tests {
         GffStruct,
         GffGender,
         GffLang,
+        Encodings,
     };
 
     fn test_pack_unpack(input: &GffStruct) {
         let output = Vec::new();
-        let mut packer = Packer::new(output);
+        let mut packer = Packer::new(output, &*Encodings::NeverwinterNights);
 
         packer.pack(&input).unwrap();
 
         let data = packer.writer.into_inner().unwrap();
-        let res = GffParser::parse(data, "").unwrap();
+        let encoding = &*Encodings::NeverwinterNights;
+        let res = GffParser::parse(data, encoding).unwrap();
 
         assert_eq!(res, *input);
     }
@@ -87,12 +91,12 @@ mod tests {
     }
 
     // XXX: disabled for now, as we need to handle encodings
-    // #[test]
-    // fn test_002_pack_and_parse_sample() {
-    //     let mut f = File::open("test-data/test.bic").unwrap();
-    //     let mut buffer = Vec::new();
-    //     f.read_to_end(&mut buffer).unwrap();
-    //     let v1 = GffParser::parse(buffer, "").unwrap();
-    //     test_pack_unpack(&v1);
-    // }
+    #[test]
+    fn test_002_pack_and_parse_sample() {
+        let mut f = File::open("test-data/test.bic").unwrap();
+        let mut buffer = Vec::new();
+        f.read_to_end(&mut buffer).unwrap();
+        let v1 = GffParser::parse(buffer, &*Encodings::NeverwinterNights).unwrap();
+        test_pack_unpack(&v1);
+    }
 }

@@ -1,10 +1,14 @@
 use std::collections::HashMap;
 use std::io::Write;
+use std::borrow::Cow;
 
 use crate::common::{
     GffHeader,
     GffStruct,
     GffFieldValue,
+    GffLang,
+    GffGender,
+    EncodingFn,
 };
 
 struct PackData {
@@ -17,10 +21,11 @@ struct PackData {
     list_indices: Vec<u8>,
 }
 
-pub struct Packer<W: std::io::Write> {
+pub struct Packer<'a, W: std::io::Write> {
     pub writer: std::io::BufWriter<W>,
     labels: HashMap<String, u32>,
     data: PackData,
+    encodings: &'a EncodingFn,
 }
 
 impl PackData {
@@ -37,12 +42,13 @@ impl PackData {
     }
 }
 
-impl <'b, W: std::io::Write> Packer<W> {
-    pub fn new(writer: W) -> Packer<W> {
+impl <'a, 'b, W: std::io::Write> Packer<'a, W> {
+    pub fn new(writer: W, encodings: &'a EncodingFn) -> Packer<'a, W> {
         Packer {
             writer: std::io::BufWriter::new(writer),
             labels: HashMap::new(),
             data: PackData::new(),
+            encodings: encodings,
         }
     }
 
@@ -255,9 +261,12 @@ impl <'b, W: std::io::Write> Packer<W> {
                 Ok(self.data.header.fields.1 - 1)
             }
             GffFieldValue::CExoString(s) => {
+                let encodings = self.encodings;
+                let encoding = encodings(None).unwrap();
+
                 self.pack_data_offset(10, label_idx);
 
-                let str_data = s.as_bytes();
+                let (str_data, _, _) = encoding.encode(s);
                 self.pack_data_u32(str_data.len() as u32);
                 self.pack_data_slice(&str_data);
                 Ok(self.data.header.fields.1 - 1)
@@ -281,12 +290,16 @@ impl <'b, W: std::io::Write> Packer<W> {
 
                 // string ref + string count
                 let mut total_len: u32 = 8;
+                let encodings = self.encodings;
 
-                for ((_lang, _gender), s) in val {
-                    let s_vec = s.as_bytes();
-                    // gender-lang + length + string
-                    total_len += 8 + s_vec.len() as u32;
-                }
+                let val_encoded: Vec<(GffLang, GffGender, Cow<'_, [u8]>)> =
+                    val.into_iter().map(|((lang, gender), s)| {
+                        let encoding = encodings(Some(*lang as u32)).unwrap();
+                        let (s_vec, _, _) = encoding.encode(s);
+                        // gender-lang + length + string
+                        total_len += 8 + s_vec.len() as u32;
+                        (*lang, *gender, s_vec)
+                }).collect();
 
                 // total data size
                 self.pack_data_u32(total_len);
@@ -295,16 +308,15 @@ impl <'b, W: std::io::Write> Packer<W> {
                 // string count
                 self.pack_data_u32(val.len() as u32);
 
-                for ((lang, gender), s) in val {
-                    let s_vec = s.as_bytes();
-                    let gender = *gender as u32;
-                    let lang = *lang as u32;
+                for (lang, gender, s) in val_encoded {
+                    let gender = gender as u32;
+                    let lang = lang as u32;
                     // gender-lang
                     self.pack_data_u32(gender + 2 * lang);
                     // length
-                    self.pack_data_u32(s_vec.len() as u32);
+                    self.pack_data_u32(s.len() as u32);
                     // string
-                    self.pack_data_slice(s_vec);
+                    self.pack_data_slice(&s);
 
                 }
                 Ok(self.data.header.fields.1 - 1)
@@ -398,6 +410,7 @@ mod tests {
         GffFieldValue,
         GffLang,
         GffGender,
+        Encodings,
     };
 
     fn assert_struct_count(packer: &Packer<Vec<u8>>, st_count: usize) {
@@ -437,7 +450,7 @@ mod tests {
             ]),
         };
         let output = Vec::new();
-        let mut packer = Packer::new(output);
+        let mut packer = Packer::new(output, &*Encodings::NeverwinterNights);
         packer.pack(&input).unwrap();
 
         assert_struct_count(&packer, 1);
@@ -455,7 +468,7 @@ mod tests {
             ]),
         };
         let output = Vec::new();
-        let mut packer = Packer::new(output);
+        let mut packer = Packer::new(output, &*Encodings::NeverwinterNights);
         packer.pack(&input).unwrap();
         /* header indicates 1 struct stored */
         assert_struct_count(&packer, 1);
@@ -478,7 +491,7 @@ mod tests {
             ]),
         };
         let output = Vec::new();
-        let mut packer = Packer::new(output);
+        let mut packer = Packer::new(output, &*Encodings::NeverwinterNights);
         packer.pack(&input).unwrap();
         /* header indicates 1 struct stored */
         assert_struct_count(&packer, 1);
@@ -497,7 +510,7 @@ mod tests {
             ]),
         };
         let output = Vec::new();
-        let mut packer = Packer::new(output);
+        let mut packer = Packer::new(output, &*Encodings::NeverwinterNights);
         packer.pack(&input).unwrap();
         /* header indicates 1 struct stored */
         assert_struct_count(&packer, 1);
@@ -516,7 +529,7 @@ mod tests {
             ]),
         };
         let output = Vec::new();
-        let mut packer = Packer::new(output);
+        let mut packer = Packer::new(output, &*Encodings::NeverwinterNights);
         packer.pack(&input).unwrap();
 
         assert_struct_count(&packer, 1);
@@ -540,7 +553,7 @@ mod tests {
             ]),
         };
         let output = Vec::new();
-        let mut packer = Packer::new(output);
+        let mut packer = Packer::new(output, &*Encodings::NeverwinterNights);
         packer.pack(&input).unwrap();
 
         assert_struct_count(&packer, 1);
@@ -567,7 +580,7 @@ mod tests {
             ]),
         };
         let output = Vec::new();
-        let mut packer = Packer::new(output);
+        let mut packer = Packer::new(output, &*Encodings::NeverwinterNights);
         packer.pack(&input).unwrap();
 
         assert_struct_count(&packer, 1);
@@ -586,7 +599,7 @@ mod tests {
             ]),
         };
         let output = Vec::new();
-        let mut packer = Packer::new(output);
+        let mut packer = Packer::new(output, &*Encodings::NeverwinterNights);
         packer.pack(&input).unwrap();
 
         assert_struct_count(&packer, 1);
@@ -611,7 +624,7 @@ mod tests {
             ]),
         };
         let output = Vec::new();
-        let mut packer = Packer::new(output);
+        let mut packer = Packer::new(output, &*Encodings::NeverwinterNights);
         packer.pack(&input).unwrap();
 
         assert_struct_count(&packer, 2);
@@ -639,7 +652,7 @@ mod tests {
             ]),
         };
         let output = Vec::new();
-        let mut packer = Packer::new(output);
+        let mut packer = Packer::new(output, &*Encodings::NeverwinterNights);
         packer.pack(&input).unwrap();
 
         assert_struct_count(&packer, 3);

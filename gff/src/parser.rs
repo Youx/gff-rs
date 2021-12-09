@@ -28,6 +28,7 @@ use crate::common::{
     GffGender,
     GffLang,
     OffsetCount,
+    EncodingFn,
 };
 
 /** Header and data blocks of GFF file. */
@@ -41,26 +42,31 @@ struct Data<'a> {
     list_indices: &'a [u8],
 }
 
-pub struct GffParser {
+pub struct GffParser<'a> {
     /* ensure we only parse a struct once, loops are not allowed */
     visited_structs: HashSet<u32>,
+    encodings: &'a EncodingFn,
 }
 
-impl <'a> GffParser {
-    pub fn parse(data: Vec<u8>, expected_type: &'a str)
-        -> Result<GffStruct, Err<nom::error::Error<()>>>
+type GResult<'a, T> = IResult<&'a [u8], T>;
+
+impl <'a, 'b> GffParser<'b> {
+    pub fn parse(data: Vec<u8>, encodings: &'b EncodingFn)
+        -> Result<GffStruct, String>
     {
         let mut parser = GffParser {
             visited_structs: HashSet::new(),
+            encodings: encodings,
         };
-        let (_, data) = parser.parse_header(&data).map_err(|x| x.map_input(|_| ()))?;
+        let (_, data) = parser.parse_header(&data)
+            .map_err(|e| format!("error parsing header: {:#?}", e))?;
         let (_, res) = parser.parse_struct(&data, 0)
-            .map_err(|x| x.map_input(|_| ()))?;
+            .map_err(|e| format!("error parsing data: {:#?}", e))?;
         Ok(res)
     }
 
     fn parse_header(&self, data: &'a [u8])
-        -> IResult<&'a [u8], Data<'a>>
+        -> GResult<'a, Data<'a>>
     {
         let header_size: u32 = 14 * 4;
         let mut data_offset = header_size;
@@ -136,7 +142,7 @@ impl <'a> GffParser {
     }
 
     fn parse_struct(&mut self, data: &'a Data, st_idx: u32)
-        -> IResult<&'a [u8], GffStruct>
+        -> GResult<'a, GffStruct>
     {
         assert!(st_idx < data.header.structs.1);
 
@@ -147,7 +153,7 @@ impl <'a> GffParser {
             0 => Ok((input, GffStruct { fields: HashMap::new() })),
             1 => {
                 let (_, field) = self.parse_field(data, field_offset)?;
-                Ok((input, GffStruct { fields: vec![field].into_iter().collect() }))
+                Ok((b"", GffStruct { fields: vec![field].into_iter().collect() }))
             },
             _ => {
                 let (input, fields) = self.parse_field_indices(
@@ -158,7 +164,7 @@ impl <'a> GffParser {
     }
 
     fn parse_field(&mut self, data: &'a Data, f_idx: u32)
-        -> IResult<&'a [u8], (String, GffFieldValue)>
+        -> GResult<'a, (String, GffFieldValue)>
     {
         assert!(f_idx < data.header.fields.1);
         let (input, _) = take(12 * f_idx)(data.fields)?;
@@ -251,7 +257,7 @@ impl <'a> GffParser {
     }
 
     fn parse_dword64(&self, data: &'a Data, offset: u32)
-        -> IResult<&'a [u8], GffFieldValue>
+        -> GResult<'a, GffFieldValue>
     {
         let (input, _) = take(offset as usize)(data.field_data)?;
         let (input, val) = le_u64(input)?;
@@ -259,7 +265,7 @@ impl <'a> GffParser {
     }
 
     fn parse_double(&self, data: &'a Data, offset: u32)
-        -> IResult<&'a [u8], GffFieldValue>
+        -> GResult<'a, GffFieldValue>
     {
         let (input, _) = take(offset as usize)(data.field_data)?;
         let (input, val) = le_f64(input)?;
@@ -267,7 +273,7 @@ impl <'a> GffParser {
     }
 
     fn parse_int64(&self, data: &'a Data, offset: u32)
-        -> IResult<&'a [u8], GffFieldValue>
+        -> GResult<'a, GffFieldValue>
     {
         let (input, _) = take(offset as usize)(data.field_data)?;
         let (input, val) = le_i64(input)?;
@@ -275,20 +281,21 @@ impl <'a> GffParser {
     }
 
     fn parse_cexostring(&self, data: &'a Data, offset: u32)
-        -> IResult<&'a [u8], GffFieldValue>
+        -> GResult<'a, GffFieldValue>
     {
+        let encodings = self.encodings;
+        let encoding = encodings(None).unwrap();
         let (input, _) = take(offset as usize)(data.field_data)?;
         let (input, len) = le_u32(input)?;
-        let (input, s) = map(
+        let (input, (s, _, _)) = map(
             take(len as usize),
-            |slice: &[u8]| slice.iter().map(|&c| c as char).collect()
-
+            |slice: &[u8]| encoding.decode(slice)
         )(input)?;
-        Ok((input, GffFieldValue::CExoString(s)))
+        Ok((input, GffFieldValue::CExoString(s.to_string())))
     }
 
     fn parse_cresref(&self, data: &'a Data, offset: u32)
-        -> IResult<&'a [u8], GffFieldValue>
+        -> GResult<'a, GffFieldValue>
     {
         let (input, _) = take(offset as usize)(data.field_data)?;
         let (input, len) = le_u8(input)?;
@@ -300,15 +307,17 @@ impl <'a> GffParser {
     }
 
     fn parse_cexosloctring(&self, data: &'a Data, offset: u32)
-        -> IResult<&'a [u8], GffFieldValue>
+        -> GResult<'a, GffFieldValue>
     {
         let (input, _) = take(offset as usize)(data.field_data)?;
         let (input, len) = le_u32(input)?;
         let (input, tlk_ref) = le_u32(input)?;
         let (input, str_count) = le_u32(input)?;
 
-        fn parse_substring(data: &[u8])
-            -> IResult<&[u8], (GffLang, GffGender, String)>
+        let encodings = self.encodings;
+
+        fn parse_substring<'a>(data: &'a [u8], encodings: &EncodingFn)
+            -> GResult<'a, (GffLang, GffGender, String)>
         {
             let (input, (lang, gender)) = map_res(le_u32, |val: u32|
                 -> Result<(GffLang, GffGender), num_enum::TryFromPrimitiveError<_>> {
@@ -316,17 +325,18 @@ impl <'a> GffParser {
                     let lang = GffLang::try_from(val / 2)?;
                     Ok((lang, gender))
                 })(data)?;
+            let encoding = encodings(Some(lang as u32)).unwrap();
             let (input, len) = le_u32(input)?;
-            let (input, s) = map(
-                take(len as usize),
-                |slice: &[u8]| slice.iter().map(|&c| c as char).collect()
-            )(input)?;
-            Ok((input, (lang, gender, s)))
+
+            let (input, slice) = take(len as usize)(input)?;
+            let (s, _, _) = encoding.decode(slice);
+
+            Ok((input, (lang, gender, s.to_string())))
         }
 
         let (input, s) = map_parser(
             take(len as usize - 8),
-            count(parse_substring, str_count as usize)
+            count(|data| { parse_substring(data, encodings) }, str_count as usize)
         )(input)?;
 
         let mut locs = HashMap::new();
@@ -337,7 +347,7 @@ impl <'a> GffParser {
     }
 
     fn parse_void(&self, data: &'a Data, offset:u32)
-        -> IResult<&'a [u8], GffFieldValue>
+        -> GResult<'a, GffFieldValue>
     {
         let (input, _) = take(offset as usize)(data.field_data)?;
         let (input, len) = le_u32(input)?;
@@ -346,7 +356,7 @@ impl <'a> GffParser {
     }
 
     fn parse_list(&mut self, data: &'a Data, offset: u32)
-        -> IResult<&'a [u8], Vec<GffStruct>>
+        -> GResult<'a, Vec<GffStruct>>
     {
         assert!(offset % 4 == 0);
 
@@ -360,35 +370,36 @@ impl <'a> GffParser {
                     verify(le_u32, |val: &u32| {
                         wself.lock().unwrap().visited_structs.insert(*val)
                     }),
-                    |st_idx: u32| -> Result<GffStruct, Err<nom::error::Error<&[u8]>>> {
-                        let (_, val) = wself.lock().unwrap().parse_struct(data, st_idx)?;
-                        Ok(val)
+                    |st_idx: u32| -> GResult<'a, GffStruct> {
+                        let (input, val) = wself.lock().unwrap().parse_struct(data, st_idx)?;
+                        Ok((input, val))
                     }),
                     list_size as usize
             )(input)?;
+        let structs = structs.into_iter().map(|t| t.1).collect();
         Ok((input, structs))
     }
 
     fn parse_field_indices(&mut self, data: &'a Data, offset: u32, f_count: usize)
-        -> IResult<&'a [u8], HashMap<String, GffFieldValue>>
+        -> GResult<'a, HashMap<String, GffFieldValue>>
     {
         assert!(offset % 4 == 0);
         assert!(offset < data.header.field_indices.1);
         let (input, _) = take(offset as usize)(data.field_indices)?;
         let (input, fields) = count(
             map_res(le_u32, |f_idx: u32|
-                    -> Result<(String, GffFieldValue), Err<nom::error::Error<&[u8]>>> {
-                let (_, val) = self.parse_field(data, f_idx)?;
-                Ok(val)
+                    -> GResult<'a, (String, GffFieldValue)> {
+                let (input, val) = self.parse_field(data, f_idx)?;
+                Ok((input, val))
             }),
             f_count
         )(input)?;
 
-        Ok((input, fields.into_iter().collect()))
+        Ok((input, fields.into_iter().map(|t| t.1).collect()))
     }
 
     fn parse_label(&self, data: &'a Data, lbl_idx: u32)
-        -> IResult<&'a [u8], String>
+        -> GResult<'a, String>
     {
         let (input, _) = take(lbl_idx as usize * 16)(data.labels)?;
         let (input, s) = map_res(
@@ -404,7 +415,10 @@ mod tests {
     use std::io::prelude::*;
     use std::fs::File;
     use crate::parser::GffParser;
-    use crate::common::GffStruct;
+    use crate::common::{
+        GffStruct,
+        Encodings,
+    };
 
     fn test_parse(filename: &str)
         -> std::result::Result<GffStruct, Box<dyn std::error::Error>>
@@ -412,7 +426,7 @@ mod tests {
         let mut f = File::open(filename)?;
         let mut buffer = Vec::new();
         f.read_to_end(&mut buffer)?;
-        let res = GffParser::parse(buffer, "")?;
+        let res = GffParser::parse(buffer, &*Encodings::NeverwinterNights)?;
         Ok(res)
     }
     #[test]

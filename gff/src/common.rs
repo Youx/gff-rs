@@ -1,5 +1,14 @@
 extern crate num_enum;
 
+use encoding_rs::{
+    WINDOWS_1252,  // 1252
+    WINDOWS_1250,  // 1250
+    EUC_KR,        // 949
+    BIG5,          // 950
+    GBK,           // 936
+    SHIFT_JIS,     // 932
+};
+
 use std::collections::HashMap;
 
 /* {{{ GFF header */
@@ -41,6 +50,7 @@ impl GffHeader {
     }
 }
 /* }}} */
+/* {{{ Gff Structs and fields */
 
 #[derive(Debug, std::cmp::Eq, PartialEq,
     std::hash::Hash, num_enum::TryFromPrimitive,
@@ -106,6 +116,44 @@ impl std::fmt::Debug for GffStruct {
         res.finish()
     }
 }
+
+/* }}} */
+/* {{{ Encodings */
+
+pub enum Encodings {
+    NeverwinterNights,
+}
+
+pub type EncodingFn = dyn Fn(Option<u32>)
+-> Result<&'static encoding_rs::Encoding, &'static str>;
+
+impl std::ops::Deref for Encodings {
+    type Target = EncodingFn;
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Encodings::NeverwinterNights => &|lang: Option<u32>| {
+                match lang {
+                    // used for CExoString
+                    None => Ok(WINDOWS_1252),
+                    // used for CExoLocString
+                    Some(0) => Ok(WINDOWS_1252),
+                    Some(1) => Ok(WINDOWS_1252),
+                    Some(2) => Ok(WINDOWS_1252),
+                    Some(3) => Ok(WINDOWS_1252),
+                    Some(4) => Ok(WINDOWS_1252),
+                    Some(5) => Ok(WINDOWS_1250),
+                    Some(128) => Ok(EUC_KR),
+                    Some(129) => Ok(BIG5),
+                    Some(130) => Ok(GBK),
+                    Some(131) => Ok(SHIFT_JIS),
+                    _ => Err("Unknown lang"),
+                }
+            }
+        }
+    }
+}
+
+/* }}} */
 
 /** UnpackStruct trait.
  *
