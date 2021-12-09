@@ -80,29 +80,30 @@ impl <'a, 'b, W: std::io::Write> Packer<'a, W> {
         assert_eq!(self.data.header.list_indices.1, self.data.list_indices.len() as u32);
     }
 
-    fn write(&mut self) {
+    fn write(&mut self) -> Result<(), std::io::Error> {
         /* write header */
-        self.writer.write(&self.data.header.gff_type);
-        self.writer.write(&self.data.header.version);
-        self.writer.write(&self.data.header.structs.0.to_le_bytes());
-        self.writer.write(&self.data.header.structs.1.to_le_bytes());
-        self.writer.write(&self.data.header.fields.0.to_le_bytes());
-        self.writer.write(&self.data.header.fields.1.to_le_bytes());
-        self.writer.write(&self.data.header.labels.0.to_le_bytes());
-        self.writer.write(&self.data.header.labels.1.to_le_bytes());
-        self.writer.write(&self.data.header.field_data.0.to_le_bytes());
-        self.writer.write(&self.data.header.field_data.1.to_le_bytes());
-        self.writer.write(&self.data.header.field_indices.0.to_le_bytes());
-        self.writer.write(&self.data.header.field_indices.1.to_le_bytes());
-        self.writer.write(&self.data.header.list_indices.0.to_le_bytes());
-        self.writer.write(&self.data.header.list_indices.1.to_le_bytes());
+        self.writer.write(&self.data.header.gff_type)?;
+        self.writer.write(&self.data.header.version)?;
+        self.writer.write(&self.data.header.structs.0.to_le_bytes())?;
+        self.writer.write(&self.data.header.structs.1.to_le_bytes())?;
+        self.writer.write(&self.data.header.fields.0.to_le_bytes())?;
+        self.writer.write(&self.data.header.fields.1.to_le_bytes())?;
+        self.writer.write(&self.data.header.labels.0.to_le_bytes())?;
+        self.writer.write(&self.data.header.labels.1.to_le_bytes())?;
+        self.writer.write(&self.data.header.field_data.0.to_le_bytes())?;
+        self.writer.write(&self.data.header.field_data.1.to_le_bytes())?;
+        self.writer.write(&self.data.header.field_indices.0.to_le_bytes())?;
+        self.writer.write(&self.data.header.field_indices.1.to_le_bytes())?;
+        self.writer.write(&self.data.header.list_indices.0.to_le_bytes())?;
+        self.writer.write(&self.data.header.list_indices.1.to_le_bytes())?;
 
-        self.writer.write(&self.data.structs);
-        self.writer.write(&self.data.fields);
-        self.writer.write(&self.data.labels);
-        self.writer.write(&self.data.field_data);
-        self.writer.write(&self.data.field_indices);
-        self.writer.write(&self.data.list_indices);
+        self.writer.write(&self.data.structs)?;
+        self.writer.write(&self.data.fields)?;
+        self.writer.write(&self.data.labels)?;
+        self.writer.write(&self.data.field_data)?;
+        self.writer.write(&self.data.field_indices)?;
+        self.writer.write(&self.data.list_indices)?;
+        Ok(())
     }
 
     /* {{{ Pack functions */
@@ -122,7 +123,7 @@ impl <'a, 'b, W: std::io::Write> Packer<'a, W> {
         }
 
         self.finalize();
-        self.write();
+        self.write().map_err(|_e| "failed to write packed data")?;
 
         Ok(())
     }

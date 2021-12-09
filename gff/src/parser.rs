@@ -18,7 +18,6 @@ use nom::{
         map, map_res, map_parser, verify,
         all_consuming,
     },
-    Err,
 };
 
 use crate::common::{
