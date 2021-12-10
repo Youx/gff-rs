@@ -17,7 +17,10 @@ mod tests {
             b2: f64,
         }
 
-        let mut s = GffStruct { fields: HashMap::new() };
+        let mut s = GffStruct {
+            st_type: 0xFFFFFFFF,
+            fields: HashMap::new(),
+        };
         s.fields.insert(String::from("a1"), GffFieldValue::Float(1.5));
         s.fields.insert(String::from("b1"), GffFieldValue::Float(2.0));
         s.fields.insert(String::from("b2"), GffFieldValue::Double(3.14));
@@ -44,7 +47,10 @@ mod tests {
             d4: u64,
         }
 
-        let mut s = GffStruct { fields: HashMap::new() };
+        let mut s = GffStruct {
+            st_type: 0xFFFFFFFF,
+            fields: HashMap::new(),
+        };
         s.fields.insert(String::from("a1"), GffFieldValue::Byte(1));
         s.fields.insert(String::from("b1"), GffFieldValue::Byte(1));
         s.fields.insert(String::from("c1"), GffFieldValue::Byte(1));
@@ -85,7 +91,10 @@ mod tests {
             d4: i64,
         }
 
-        let mut s = GffStruct { fields: HashMap::new() };
+        let mut s = GffStruct {
+            st_type: 0xFFFFFFFF,
+            fields: HashMap::new()
+        };
         s.fields.insert(String::from("a1"), GffFieldValue::Char(-1));
         s.fields.insert(String::from("b1"), GffFieldValue::Char(-1));
         s.fields.insert(String::from("c1"), GffFieldValue::Char(-1));
@@ -124,8 +133,14 @@ mod tests {
         struct TestStruct3 {
             a: TestSubStruct3,
         }
-        let mut s = GffStruct { fields: HashMap::new() };
-        let mut ss = GffStruct { fields: HashMap::new() };
+        let mut s = GffStruct {
+            st_type: 0xFFFFFFFF,
+            fields: HashMap::new(),
+        };
+        let mut ss = GffStruct {
+            st_type: 0x55555555,
+            fields: HashMap::new()
+        };
         ss.fields.insert(String::from("a"), GffFieldValue::Char(-1));
         ss.fields.insert(String::from("b"), GffFieldValue::Byte(1));
         ss.fields.insert(String::from("c"), GffFieldValue::Short(-1));
@@ -161,8 +176,14 @@ mod tests {
         struct TestStruct4 {
             a: Vec<TestSubStruct4>,
         }
-        let mut s = GffStruct { fields: HashMap::new() };
-        let mut ss = GffStruct { fields: HashMap::new() };
+        let mut s = GffStruct {
+            st_type: 0xFFFFFFFF,
+            fields: HashMap::new(),
+        };
+        let mut ss = GffStruct {
+            st_type: 0xFFFFFFFF,
+            fields: HashMap::new(),
+        };
         ss.fields.insert(String::from("a"), GffFieldValue::Char(-1));
         s.fields.insert(String::from("a"), GffFieldValue::List(vec![ss]));
 

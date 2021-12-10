@@ -146,18 +146,27 @@ impl <'a, 'b> GffParser<'b> {
         assert!(st_idx < data.header.structs.1);
 
         let (input, _) = take(12 * st_idx as usize)(data.structs)?;
-        let (input, (_st_type, field_offset, field_count)) = tuple((le_u32, le_u32, le_u32))(input)?;
+        let (input, (st_type, field_offset, field_count)) = tuple((le_u32, le_u32, le_u32))(input)?;
 
         match field_count {
-            0 => Ok((input, GffStruct { fields: HashMap::new() })),
+            0 => Ok((input, GffStruct {
+                st_type: st_type,
+                fields: HashMap::new(),
+            })),
             1 => {
                 let (_, field) = self.parse_field(data, field_offset)?;
-                Ok((b"", GffStruct { fields: vec![field].into_iter().collect() }))
+                Ok((b"", GffStruct {
+                    st_type: st_type,
+                    fields: vec![field].into_iter().collect(),
+                }))
             },
             _ => {
                 let (input, fields) = self.parse_field_indices(
                     data, field_offset, field_count as usize)?;
-                Ok((input, GffStruct { fields: fields }))
+                Ok((input, GffStruct {
+                    st_type: st_type,
+                    fields: fields,
+                }))
             },
         }
     }

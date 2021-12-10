@@ -133,7 +133,7 @@ impl <'a, 'b, W: std::io::Write> Packer<'a, W> {
         -> Result<(), &'static str>
     {
         /* write struct type */
-        self.data.structs.extend_from_slice(&0u32.to_le_bytes());
+        self.data.structs.extend_from_slice(&input.st_type.to_le_bytes());
         match input.fields.len() {
             0 => {
                 self.data.structs.extend_from_slice(
@@ -446,6 +446,7 @@ mod tests {
     #[test]
     fn test_01_pack_1_simple_field() {
         let input = GffStruct {
+            st_type: 0xFFFFFFFF,
             fields: HashMap::from([
                 (String::from("field1"), GffFieldValue::Byte(1)),
             ]),
@@ -463,6 +464,7 @@ mod tests {
     #[test]
     fn test_02_pack_2_simple_fields() {
         let input = GffStruct {
+            st_type: 0xFFFFFFFF,
             fields: HashMap::from([
                 (String::from("field1"), GffFieldValue::Byte(1)),
                 (String::from("field2"), GffFieldValue::Byte(2)),
@@ -481,6 +483,7 @@ mod tests {
     #[test]
     fn test_03_pack_all_simple_fields() {
         let input = GffStruct {
+            st_type: 0xFFFFFFFF,
             fields: HashMap::from([
                 (String::from("field1"), GffFieldValue::Byte(1)),
                 (String::from("field2"), GffFieldValue::Char(2)),
@@ -504,6 +507,7 @@ mod tests {
     #[test]
     fn test_04_pack_all_8_byte_fields() {
         let input = GffStruct {
+            st_type: 0xFFFFFFFF,
             fields: HashMap::from([
                 (String::from("field1"), GffFieldValue::DWord64(1)),
                 (String::from("field2"), GffFieldValue::Int64(2)),
@@ -524,6 +528,7 @@ mod tests {
     #[test]
     fn test_05_pack_simple_string() {
         let input = GffStruct {
+            st_type: 0xFFFFFFFF,
             fields: HashMap::from([
                 (String::from("field1"),
                  GffFieldValue::CExoString(String::from("test"))),
@@ -548,6 +553,7 @@ mod tests {
     #[test]
     fn test_06_pack_resref() {
         let input = GffStruct {
+            st_type: 0xFFFFFFFF,
             fields: HashMap::from([
                 (String::from("field1"),
                  GffFieldValue::CResRef(String::from("TeSt"))),
@@ -575,6 +581,7 @@ mod tests {
             ((GffLang::French, GffGender::Male), String::from("Salut")),
         ]);
         let input = GffStruct {
+            st_type: 0xFFFFFFFF,
             fields: HashMap::from([
                 (String::from("field1"),
                 GffFieldValue::CExoLocString(0x1234, langs))
@@ -594,6 +601,7 @@ mod tests {
     #[test]
     fn test_08_pack_void() {
         let input = GffStruct {
+            st_type: 0xFFFFFFFF,
             fields: HashMap::from([
                 (String::from("field1"),
                 GffFieldValue::Void(b"test".to_vec()))
@@ -615,11 +623,13 @@ mod tests {
     #[test]
     fn test_09_pack_sub_struct() {
         let input = GffStruct {
+            st_type: 0x55555555,
             fields: HashMap::from([
                 (String::from("subfield1"), GffFieldValue::Byte(1))
             ]),
         };
         let input = GffStruct {
+            st_type: 0xFFFFFFFF,
             fields: HashMap::from([
                 (String::from("field1"), GffFieldValue::Struct(input))
             ]),
@@ -637,16 +647,19 @@ mod tests {
     #[test]
     fn test_10_pack_list() {
         let sub1 = GffStruct {
+            st_type: 0x55555555,
             fields: HashMap::from([
                 (String::from("subfield1"), GffFieldValue::Byte(1))
             ]),
         };
         let sub2 = GffStruct {
+            st_type: 0xAAAAAAAA,
             fields: HashMap::from([
                 (String::from("subfield2"), GffFieldValue::Byte(2))
             ]),
         };
         let input = GffStruct {
+            st_type: 0xFFFFFFFF,
             fields: HashMap::from([
                 (String::from("field1"),
                 GffFieldValue::List(vec![sub1, sub2]))

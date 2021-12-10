@@ -36,6 +36,7 @@ mod tests {
 
     fn test_1_field(val: GffFieldValue) {
         let val = GffStruct {
+            st_type: 0xFFFFFFFF,
             fields: HashMap::from([(String::from("field1"), val)]),
         };
         test_pack_unpack(&val);
@@ -69,6 +70,7 @@ mod tests {
         test_1_field(
             GffFieldValue::Struct(
                 GffStruct {
+                    st_type: 0xFFFFFFFF,
                     fields: HashMap::from([
                                 (String::from("field2"), GffFieldValue::Byte(1))
                     ])
@@ -78,10 +80,12 @@ mod tests {
         test_1_field(
             GffFieldValue::List(vec![
                 GffStruct {
+                    st_type: 0xFFFFFFFF,
                     fields: HashMap::from([
                                 (String::from("field2"), GffFieldValue::Byte(0xAA))
                     ])
                 }, GffStruct {
+                    st_type: 0xFFFFFFFF,
                     fields: HashMap::from([
                                 (String::from("field2"), GffFieldValue::Byte(0x55))
                     ])

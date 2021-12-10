@@ -101,6 +101,7 @@ pub enum GffFieldValue {
 
 #[derive(PartialEq)]
 pub struct GffStruct {
+    pub st_type: u32,
     pub fields: HashMap<String, GffFieldValue>,
 }
 
