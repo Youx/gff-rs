@@ -5,14 +5,32 @@ extern crate proc_macro;
 #[macro_use]
 extern crate quote;
 
+struct GFFStructId(syn::LitInt);
 
-#[proc_macro_derive(DeGFF)]
+impl syn::parse::Parse for GFFStructId {
+    fn parse(input: syn::parse::ParseStream) -> syn::parse::Result<Self> {
+        let content;
+        syn::parenthesized!(content in input);
+        let st_id = content.parse()?;
+        Ok(GFFStructId(st_id))
+    }
+}
+
+#[proc_macro_derive(DeGFF, attributes(GFFStructId))]
 pub fn derive_gff_deserialize(input: TokenStream) -> TokenStream {
     // Parse the input tokens into a syntax tree
     let input = parse_macro_input!(input as DeriveInput);
 
+    // parse attribute GFFStructId
+    let attribute = input.attrs.iter().filter(
+        |a| a.path.segments.len() == 1 && a.path.segments[0].ident == "GFFStructId"
+    ).nth(0).expect("GFFStructId attribute required for deriving DeGFF");
+    let _parameters: GFFStructId = syn::parse2(attribute.tokens.clone())
+        .expect("Invalid GFFStructId attribute!");
+
     let struct_name = &input.ident;
     let input = input.data;
+
 
     match input {
         syn::Data::Enum(_) => { panic!("Expected struct, got enum"); }

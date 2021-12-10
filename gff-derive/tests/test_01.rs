@@ -11,6 +11,7 @@ mod tests {
     #[test]
     fn test_float_double() {
         #[derive(gff_derive::DeGFF, std::cmp::PartialEq, Debug)]
+        #[GFFStructId(0x12345678)]
         struct TestStruct1 {
             a1: f32,
             b1: f64,
@@ -31,6 +32,7 @@ mod tests {
     #[test]
     fn test_uint() {
         #[derive(gff_derive::DeGFF, std::cmp::PartialEq, Debug)]
+        #[GFFStructId(0x12345678)]
         struct TestStruct2 {
             a1: u8,
 
@@ -75,6 +77,7 @@ mod tests {
     #[test]
     fn test_int() {
         #[derive(gff_derive::DeGFF, std::cmp::PartialEq, Debug)]
+        #[GFFStructId(0x12345678)]
         struct TestStruct2 {
             a1: i8,
 
@@ -119,6 +122,7 @@ mod tests {
     #[test]
     fn test_sub_struct() {
         #[derive(gff_derive::DeGFF, std::cmp::PartialEq, Debug)]
+        #[GFFStructId(0x12345678)]
         struct TestSubStruct3 {
             a: i8,
             b: u8,
@@ -130,6 +134,7 @@ mod tests {
             h: u64,
         }
         #[derive(gff_derive::DeGFF, std::cmp::PartialEq, Debug)]
+        #[GFFStructId(0x12345678)]
         struct TestStruct3 {
             a: TestSubStruct3,
         }
@@ -169,10 +174,12 @@ mod tests {
     #[test]
     fn test_sub_struct_vec() {
         #[derive(gff_derive::DeGFF, std::cmp::PartialEq, Debug)]
+        #[GFFStructId(0x12345678)]
         struct TestSubStruct4 {
             a: i8,
         }
         #[derive(gff_derive::DeGFF, std::cmp::PartialEq, Debug)]
+        #[GFFStructId(0x12345678)]
         struct TestStruct4 {
             a: Vec<TestSubStruct4>,
         }
