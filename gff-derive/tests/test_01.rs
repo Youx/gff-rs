@@ -185,4 +185,13 @@ mod tests {
         };
         test_serialize_deserialize!(TestStruct4, struc, &gff_struct);
     }
+
+    #[test]
+    fn test_direct_pack() {
+        #[derive(gff_derive::GFFStructPack)]
+        #[GFFStructId(0x12345678)]
+        struct TestStruct1 {
+            a: u8
+        }
+    }
 }

@@ -11,20 +11,20 @@ use crate::common::{
     EncodingFn,
 };
 
-struct PackData {
-    header: GffHeader,
-    structs: Vec<u8>,
-    fields: Vec<u8>,
-    labels: Vec<u8>,
-    field_data: Vec<u8>,
-    field_indices: Vec<u8>,
-    list_indices: Vec<u8>,
+pub struct PackData {
+    pub header: GffHeader,
+    pub structs: Vec<u8>,
+    pub fields: Vec<u8>,
+    pub labels: Vec<u8>,
+    pub field_data: Vec<u8>,
+    pub field_indices: Vec<u8>,
+    pub list_indices: Vec<u8>,
 }
 
 pub struct Packer<'a, W: std::io::Write> {
     pub writer: std::io::BufWriter<W>,
     labels: HashMap<String, u32>,
-    data: PackData,
+    pub data: PackData,
     encodings: &'a EncodingFn,
 }
 
@@ -198,7 +198,7 @@ impl <'a, 'b, W: std::io::Write> Packer<'a, W> {
     ///
     /// A field must be <= 16 chars, and will be padded with 0 if shorter.
     ///
-    fn pack_label(&mut self, label: &String)
+    pub fn pack_label(&mut self, label: &String)
         -> Result<u32, &'static str>
     {
         let max_label_idx = self.labels.len();
@@ -391,7 +391,7 @@ impl <'a, 'b, W: std::io::Write> Packer<'a, W> {
     }
 
     /// Pack a field type, field label, and 4 bytes of data into the fields block.
-    fn pack_val_4(&mut self, ftype: u32, label_idx: u32, val: &[u8; 4]) {
+    pub fn pack_val_4(&mut self, ftype: u32, label_idx: u32, val: &[u8; 4]) {
         self.data.fields.extend_from_slice(&ftype.to_le_bytes());
         self.data.fields.extend_from_slice(&label_idx.to_le_bytes());
         self.data.fields.extend_from_slice(val);
@@ -437,6 +437,79 @@ impl <'a, 'b, W: std::io::Write> Packer<'a, W> {
     /* }}} */
 }
 
+/* {{{ PackField implementations. */
+
+/* Trait to pack field */
+pub trait PackField<'a, W: std::io::Write> {
+    fn pack_field(&'a self, label: String, packer: &mut Packer<W>,
+        structs: &mut Vec<&'a dyn PackStruct<W>>, st_idx: &mut u32) -> ();
+}
+
+/* Trait to pack struct */
+pub trait PackStruct<'a, W: std::io::Write> {
+    fn pack(&'a self, data: &mut Packer<W>, structs: &mut Vec<&'a dyn PackStruct<W>>,
+        st_idx: &mut u32)
+        -> ();
+}
+
+macro_rules! pack_field_1 {
+    ( $type:ident, $type_id:literal ) => {
+        impl<'a, W: std::io::Write> PackField<'a, W> for $type {
+            fn pack_field(&'a self, label: String, packer: &mut Packer<W>,
+                _structs: &mut Vec<&'a dyn PackStruct<W>>, _st_idx: &mut u32)
+                -> ()
+            {
+                let label_idx = packer.pack_label(&label).unwrap();
+                packer.pack_val_1(1, label_idx, *self as u8);
+            }
+        }
+    }
+}
+
+pack_field_1!(u8, 0);
+pack_field_1!(i8, 1);
+
+macro_rules! pack_field_n {
+    ( $type:ident, $pack_fn:ident, $type_id:literal ) => {
+        impl<'a, W: std::io::Write> PackField<'a, W> for $type {
+            fn pack_field(&'a self, label: String, packer: &mut Packer<W>,
+                _structs: &mut Vec<&'a dyn PackStruct<W>>, _st_idx: &mut u32)
+                -> ()
+            {
+                let label_idx = packer.pack_label(&label).unwrap();
+                packer.$pack_fn(1, label_idx, &self.to_le_bytes());
+            }
+        }
+    }
+}
+
+pack_field_n!(u16, pack_val_2, 2);
+pack_field_n!(i16, pack_val_2, 3);
+pack_field_n!(u32, pack_val_4, 4);
+pack_field_n!(i32, pack_val_4, 5);
+pack_field_n!(u64, pack_val_8, 6);
+pack_field_n!(i64, pack_val_8, 7);
+pack_field_n!(f32, pack_val_4, 8);
+pack_field_n!(f64, pack_val_8, 9);
+
+impl<'a, W: std::io::Write> PackField<'a, W> for String {
+    fn pack_field(&'a self, label: String, packer: &mut Packer<W>,
+        _structs: &mut Vec<&'a dyn PackStruct<W>>, _st_idx: &mut u32)
+        -> ()
+    {
+        let encodings = packer.encodings;
+        let encoding = encodings(None).unwrap();
+        let label_idx = packer.pack_label(&label).unwrap();
+
+        packer.pack_data_offset(10, label_idx);
+
+        let (str_data, _, _) = encoding.encode(self);
+        packer.pack_data_u32(str_data.len() as u32);
+        packer.pack_data_slice(&str_data);
+    }
+}
+
+/* }}} */
 
 #[cfg(test)]
 mod tests {
