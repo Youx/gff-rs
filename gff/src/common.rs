@@ -155,18 +155,26 @@ impl std::ops::Deref for Encodings {
 }
 
 /* }}} */
+/* {{{ Public traits */
 
-/** UnpackStruct trait.
+/** Deserialize trait.
  *
  * This trait should be implemented for every structure
- * that can be unpack from GFF, by deriving gff_derive::DeGFF
+ * that can be deserialized from GFFStruct.
  */
-pub trait UnpackStruct {
-    fn unpack(from: &GffStruct)
+pub trait Deserialize {
+    fn deserialize(from: &GffStruct)
         -> Result<Self, &'static str> where Self: std::marker::Sized;
 }
 
-pub trait PackStruct {
-    fn pack(&self)
+/** Serialize trait.
+ *
+ * This trait should be implemented for every structure
+ * that can be serialized into a GFFStruct.
+ */
+pub trait Serialize {
+    fn serialize(&self)
         -> Result<GffStruct, &'static str> where Self: std::marker::Sized;
 }
+
+/* }}} */

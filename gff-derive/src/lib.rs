@@ -49,19 +49,21 @@ pub fn derive_gff_deserialize(input: TokenStream) -> TokenStream {
 
                     // Build the output, possibly using quasi-quotation
                     let expanded = quote! {
-                        /* unpacking from GffStruct to custom structure. */
+                        /* deserializing from GffStruct to custom structure. */
                         impl std::convert::TryFrom<&GffFieldValue> for #struct_name {
                             type Error = &'static str;
 
                             fn try_from(value: &GffFieldValue) -> Result<Self, self::Error> {
                                 match value {
-                                    ::gff::common::GffFieldValue::Struct(s) => ::gff::common::UnpackStruct::unpack(s),
+                                    ::gff::common::GffFieldValue::Struct(s) => 
+                                        ::gff::common::Deserialize::deserialize(s),
                                     _ => Err("Expected Struct"),
                                 }
                             }
                         }
-                        impl ::gff::common::UnpackStruct for #struct_name {
-                            fn unpack(s: &::gff::common::GffStruct) -> Result<Self, &'static str> where Self: std::marker::Sized {
+                        impl ::gff::common::Deserialize for #struct_name {
+                            fn deserialize(s: &::gff::common::GffStruct)
+                                -> Result<Self, &'static str> where Self: std::marker::Sized {
                                 Ok(#struct_name {
                                     #(
                                         #fields : std::convert::TryFrom::try_from(
@@ -73,8 +75,9 @@ pub fn derive_gff_deserialize(input: TokenStream) -> TokenStream {
                             }
                         }
 
-                        impl ::gff::common::PackStruct for #struct_name {
-                            fn pack(&self) -> Result<GffStruct, &'static str> {
+                        /* serializing from custom structure to GffStruct. */
+                        impl ::gff::common::Serialize for #struct_name {
+                            fn serialize(&self) -> Result<GffStruct, &'static str> {
                                 Ok(GffStruct {
                                     st_type: #struct_id,
                                     fields: HashMap::from([
@@ -89,7 +92,7 @@ pub fn derive_gff_deserialize(input: TokenStream) -> TokenStream {
                             type Error = &'static str;
 
                             fn try_into(self) -> Result<GffFieldValue, self::Error> {
-                                Ok(GffFieldValue::Struct(::gff::common::PackStruct::pack(self)?))
+                                Ok(GffFieldValue::Struct(::gff::common::Serialize::serialize(self)?))
                             }
                         }
                     };

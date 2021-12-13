@@ -1,6 +1,6 @@
 use crate::common::{
     GffFieldValue,
-    UnpackStruct,
+    Deserialize,
 };
 
 macro_rules! gff_try_from {
@@ -42,14 +42,14 @@ impl std::convert::TryFrom<&GffFieldValue> for String {
     }
 }
 
-impl<T> std::convert::TryFrom<&GffFieldValue> for Vec<T> where T: UnpackStruct {
+impl<T> std::convert::TryFrom<&GffFieldValue> for Vec<T> where T: Deserialize {
     type Error = &'static str;
 
     fn try_from(value: &GffFieldValue) -> Result<Self, Self::Error> {
         match value {
             GffFieldValue::List(v) => {
                 v.iter()
-                    .map(|x| { T::unpack(&x) })
+                    .map(|x| { T::deserialize(&x) })
                     .collect::<Result<Vec<T>, Self::Error>>()
             },
             _ => Err("Expected GffFieldValue::List"),

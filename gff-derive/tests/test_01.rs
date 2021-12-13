@@ -3,8 +3,8 @@ mod tests {
     use gff::common::GffStruct;
     use gff::common::GffFieldValue;
     use std::collections::HashMap;
-    use gff::common::UnpackStruct;
-    use gff::common::PackStruct;
+    use gff::common::Deserialize;
+    use gff::common::Serialize;
     use gff_derive;
     use std::convert::TryInto;
 
@@ -13,10 +13,10 @@ mod tests {
     macro_rules! test_serialize_deserialize {
         ( $type:ty, $struct: expr, $gff_struct: expr ) => {
             {
-                let struct_v2 = <$type>::unpack(&$gff_struct).unwrap();
+                let struct_v2 = <$type>::deserialize(&$gff_struct).unwrap();
                 assert_eq!($struct, struct_v2);
 
-                let gff_struct_v2 = &$struct.pack().unwrap();
+                let gff_struct_v2 = &$struct.serialize().unwrap();
                 assert_eq!($gff_struct, gff_struct_v2);
             }
         }

@@ -1,7 +1,7 @@
 use crate::common::{
     GffFieldValue,
     GffStruct,
-    PackStruct,
+    Serialize,
 };
 
 macro_rules! gff_try_into {
@@ -35,14 +35,14 @@ impl std::convert::TryInto<GffFieldValue> for &String {
     }
 }
 
-impl<T> std::convert::TryInto<GffFieldValue> for &Vec<T> where T: PackStruct {
+impl<T> std::convert::TryInto<GffFieldValue> for &Vec<T> where T: Serialize {
     type Error = &'static str;
 
     fn try_into(self) -> Result<GffFieldValue, Self::Error> {
         let mut res: Vec<GffStruct> = vec![];
 
         for st in self {
-            res.push(st.pack()?);
+            res.push(st.serialize()?);
         }
         Ok(
             GffFieldValue::List(res)
