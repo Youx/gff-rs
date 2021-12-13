@@ -16,7 +16,7 @@ impl syn::parse::Parse for GFFStructId {
     }
 }
 
-#[proc_macro_derive(DeGFF, attributes(GFFStructId))]
+#[proc_macro_derive(GFFStruct, attributes(GFFStructId))]
 pub fn derive_gff_deserialize(input: TokenStream) -> TokenStream {
     // Parse the input tokens into a syntax tree
     let input = parse_macro_input!(input as DeriveInput);
@@ -24,7 +24,7 @@ pub fn derive_gff_deserialize(input: TokenStream) -> TokenStream {
     // parse attribute GFFStructId
     let attribute = input.attrs.iter().filter(
         |a| a.path.segments.len() == 1 && a.path.segments[0].ident == "GFFStructId"
-    ).nth(0).expect("GFFStructId attribute required for deriving DeGFF");
+    ).nth(0).expect("GFFStructId attribute required for deriving GFFStruct");
     let parameters: GFFStructId = syn::parse2(attribute.tokens.clone())
         .expect("Invalid GFFStructId attribute!");
 
