@@ -3,128 +3,33 @@ use crate::common::{
     UnpackStruct,
 };
 
-impl std::convert::TryFrom<&GffFieldValue> for f32 {
-    type Error = &'static str;
+macro_rules! gff_try_from {
+    ( $gff_type:ident, $type:ident ) => {
+        impl std::convert::TryFrom<&GffFieldValue> for $type {
+            type Error = &'static str;
 
-    fn try_from(value: &GffFieldValue) -> Result<Self, Self::Error> {
-        match value {
-            GffFieldValue::Float(f) => Ok(*f),
-            _ => Err("expected Float")
+            fn try_from(value: &GffFieldValue)
+                -> Result<Self, Self::Error>
+            {
+                match value {
+                    GffFieldValue::$gff_type(val) => Ok(*val),
+                    _ => Err("expected $gff_type"),
+                }
+            }
         }
     }
 }
 
-impl std::convert::TryFrom<&GffFieldValue> for f64 {
-    type Error = &'static str;
-
-    fn try_from(value: &GffFieldValue) -> Result<Self, Self::Error> {
-        match value {
-            GffFieldValue::Float(f) => Ok((*f).into()),
-            GffFieldValue::Double(f) => Ok(*f),
-            _ => Err("expected Float/Double")
-        }
-    }
-}
-
-impl std::convert::TryFrom<&GffFieldValue> for i8 {
-    type Error = &'static str;
-
-    fn try_from(value: &GffFieldValue) -> Result<Self, Self::Error> {
-        match value {
-            GffFieldValue::Char(i) => Ok(*i),
-            _ => Err("expected Char")
-        }
-    }
-}
-
-impl std::convert::TryFrom<&GffFieldValue> for u8 {
-    type Error = &'static str;
-
-    fn try_from(value: &GffFieldValue) -> Result<Self, Self::Error> {
-        match value {
-            GffFieldValue::Byte(u) => Ok(*u),
-            _ => Err("expected Byte")
-        }
-    }
-}
-
-impl std::convert::TryFrom<&GffFieldValue> for i16 {
-    type Error = &'static str;
-
-    fn try_from(value: &GffFieldValue) -> Result<Self, Self::Error> {
-        match value {
-            GffFieldValue::Char(i) => Ok((*i).into()),
-            GffFieldValue::Short(i) => Ok(*i),
-            _ => Err("expected Char/Short")
-        }
-    }
-}
-
-impl std::convert::TryFrom<&GffFieldValue> for u16 {
-    type Error = &'static str;
-
-    fn try_from(value: &GffFieldValue) -> Result<Self, Self::Error> {
-        match value {
-            GffFieldValue::Byte(u) => Ok((*u).into()),
-            GffFieldValue::Word(u) => Ok(*u),
-            _ => Err("expected Byte/Word")
-        }
-    }
-}
-
-impl std::convert::TryFrom<&GffFieldValue> for i32 {
-    type Error = &'static str;
-
-    fn try_from(value: &GffFieldValue) -> Result<Self, Self::Error> {
-        match value {
-            GffFieldValue::Char(i) => Ok((*i).into()),
-            GffFieldValue::Short(i) => Ok((*i).into()),
-            GffFieldValue::Int(i) => Ok(*i),
-            _ => Err("expected Char/Short/Int")
-        }
-    }
-}
-
-impl std::convert::TryFrom<&GffFieldValue> for u32 {
-    type Error = &'static str;
-
-    fn try_from(value: &GffFieldValue) -> Result<Self, Self::Error> {
-        match value {
-            GffFieldValue::Byte(u) => Ok((*u).into()),
-            GffFieldValue::Word(u) => Ok((*u).into()),
-            GffFieldValue::DWord(u) => Ok(*u),
-            _ => Err("expected Byte/Word/DWord")
-        }
-    }
-}
-
-impl std::convert::TryFrom<&GffFieldValue> for i64 {
-    type Error = &'static str;
-
-    fn try_from(value: &GffFieldValue) -> Result<Self, Self::Error> {
-        match value {
-            GffFieldValue::Char(i) => Ok((*i).into()),
-            GffFieldValue::Short(i) => Ok((*i).into()),
-            GffFieldValue::Int(i) => Ok((*i).into()),
-            GffFieldValue::Int64(i) => Ok(*i),
-            _ => Err("expected Char/Short/Int/Int64")
-        }
-    }
-}
-
-impl std::convert::TryFrom<&GffFieldValue> for u64 {
-    type Error = &'static str;
-
-    fn try_from(value: &GffFieldValue) -> Result<Self, Self::Error> {
-        match value {
-            GffFieldValue::Byte(u) => Ok((*u).into()),
-            GffFieldValue::Word(u) => Ok((*u).into()),
-            GffFieldValue::DWord(u) => Ok((*u).into()),
-            GffFieldValue::DWord64(u) => Ok(*u),
-            _ => Err("expected Byte/Word/DWord/DWord64")
-        }
-    }
-}
+gff_try_from!(Float,   f32);
+gff_try_from!(Double,  f64);
+gff_try_from!(Byte,    u8);
+gff_try_from!(Char,    i8);
+gff_try_from!(Word,    u16);
+gff_try_from!(Short,   i16);
+gff_try_from!(DWord,   u32);
+gff_try_from!(Int,     i32);
+gff_try_from!(DWord64, u64);
+gff_try_from!(Int64,   i64);
 
 impl std::convert::TryFrom<&GffFieldValue> for String {
     type Error = &'static str;
