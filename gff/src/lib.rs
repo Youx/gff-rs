@@ -2,6 +2,7 @@ extern crate encoding_rs;
 
 pub mod common;
 pub mod deserialize;
+pub mod serialize;
 pub mod parser;
 pub mod packer;
 

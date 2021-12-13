@@ -25,12 +25,12 @@ pub fn derive_gff_deserialize(input: TokenStream) -> TokenStream {
     let attribute = input.attrs.iter().filter(
         |a| a.path.segments.len() == 1 && a.path.segments[0].ident == "GFFStructId"
     ).nth(0).expect("GFFStructId attribute required for deriving DeGFF");
-    let _parameters: GFFStructId = syn::parse2(attribute.tokens.clone())
+    let parameters: GFFStructId = syn::parse2(attribute.tokens.clone())
         .expect("Invalid GFFStructId attribute!");
 
     let struct_name = &input.ident;
     let input = input.data;
-
+    let struct_id = parameters.0;
 
     match input {
         syn::Data::Enum(_) => { panic!("Expected struct, got enum"); }
@@ -49,6 +49,7 @@ pub fn derive_gff_deserialize(input: TokenStream) -> TokenStream {
 
                     // Build the output, possibly using quasi-quotation
                     let expanded = quote! {
+                        /* unpacking from GffStruct to custom structure. */
                         impl std::convert::TryFrom<&GffFieldValue> for #struct_name {
                             type Error = &'static str;
 
@@ -71,14 +72,34 @@ pub fn derive_gff_deserialize(input: TokenStream) -> TokenStream {
                                 })
                             }
                         }
+
+                        impl ::gff::common::PackStruct for #struct_name {
+                            fn pack(&self) -> Result<GffStruct, &'static str> {
+                                Ok(GffStruct {
+                                    st_type: #struct_id,
+                                    fields: HashMap::from([
+                                        #(
+                                            (#keys.to_string(), (&self.#fields).try_into()?)
+                                        ),*
+                                    ])
+                                })
+                            }
+                        }
+                        impl std::convert::TryInto<GffFieldValue> for &#struct_name {
+                            type Error = &'static str;
+
+                            fn try_into(self) -> Result<GffFieldValue, self::Error> {
+                                Ok(GffFieldValue::Struct(::gff::common::PackStruct::pack(self)?))
+                            }
+                        }
                     };
+
                     // Hand the output tokens back to the compiler
-                    TokenStream::from(expanded)
+                    let res = TokenStream::from(expanded);
+                    // println!("{}", res);
+                    res
                 }
             }
         }
     }
-
-
 }
-

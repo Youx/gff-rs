@@ -109,7 +109,7 @@ impl std::fmt::Debug for GffStruct {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut keys = self.fields.keys().collect::<Vec<&String>>();
         keys.sort();
-        let mut res = f.debug_struct("GffStruct");
+        let mut res = f.debug_struct(&format!("GffStruct (0x{:x})", self.st_type));
 
         for key in keys {
             res.field(key, &*self.fields.get(key).unwrap());
@@ -164,4 +164,9 @@ impl std::ops::Deref for Encodings {
 pub trait UnpackStruct {
     fn unpack(from: &GffStruct)
         -> Result<Self, &'static str> where Self: std::marker::Sized;
+}
+
+pub trait PackStruct {
+    fn pack(&self)
+        -> Result<GffStruct, &'static str> where Self: std::marker::Sized;
 }
