@@ -52,7 +52,7 @@ impl <'a, 'b, W: std::io::Write> Packer<'a, W> {
         }
     }
 
-    /* write offsets into header */
+    /// Write offsets into header.
     fn finalize(&mut self) {
         let mut offset = 14 * 4;
 
@@ -107,6 +107,11 @@ impl <'a, 'b, W: std::io::Write> Packer<'a, W> {
     }
 
     /* {{{ Pack functions */
+
+    /// Pack a GffStruct.
+    ///
+    /// This is used as the entry point of data packing.
+    ///
     pub fn pack(&mut self, input: &'b GffStruct)
         -> Result<(), &'static str>
     {
@@ -128,6 +133,12 @@ impl <'a, 'b, W: std::io::Write> Packer<'a, W> {
         Ok(())
     }
 
+    ///  Pack a GffStruct.
+    ///
+    /// This packs all basic field data.
+    /// Structs/Lists of structs will be pushed in a vec and
+    /// packed afterwards.
+    ///
     fn pack_struct(&mut self, input: &'b GffStruct,
         structs: &mut Vec<&'b GffStruct>, current_st_idx: &mut u32)
         -> Result<(), &'static str>
@@ -183,6 +194,10 @@ impl <'a, 'b, W: std::io::Write> Packer<'a, W> {
         Ok(())
     }
 
+    ///  Pack a field label into the labels block.
+    ///
+    /// A field must be <= 16 chars, and will be padded with 0 if shorter.
+    ///
     fn pack_label(&mut self, label: &String)
         -> Result<u32, &'static str>
     {
@@ -191,7 +206,7 @@ impl <'a, 'b, W: std::io::Write> Packer<'a, W> {
             .entry(label.clone())
             .or_insert(max_label_idx as u32);
 
-        /* new label needs to be written */ 
+        /* new label needs to be written */
         if *label_idx == self.data.header.labels.1 {
             self.data.header.labels.1 += 1;
 
@@ -212,6 +227,7 @@ impl <'a, 'b, W: std::io::Write> Packer<'a, W> {
         Ok(*label_idx)
     }
 
+    /// Pack a struct field name and associated value.
     fn pack_field(&mut self, field_name: &String, field_value: &'b GffFieldValue,
         structs: &mut Vec<&'b GffStruct>, current_st_idx: &mut u32)
         -> Result<u32, &'static str>
@@ -352,6 +368,10 @@ impl <'a, 'b, W: std::io::Write> Packer<'a, W> {
         }
     }
 
+    /// Pack a field type, field label, and 1 byte of data into the fields block.
+    ///
+    /// The 1 byte of data will be padded with 3 bytes of zeros.
+    ///
     fn pack_val_1(&mut self, ftype: u32, label_idx: u32, val: u8) {
         self.data.fields.extend_from_slice(&ftype.to_le_bytes());
         self.data.fields.extend_from_slice(&label_idx.to_le_bytes());
@@ -359,6 +379,10 @@ impl <'a, 'b, W: std::io::Write> Packer<'a, W> {
         self.data.fields.extend_from_slice(&[0u8; 3]);
     }
 
+    /// Pack a field type, field label, and 2 bytes of data into the fields block.
+    ///
+    /// The 2 bytes of data will be padded with 2 bytes of zeros.
+    ///
     fn pack_val_2(&mut self, ftype: u32, label_idx: u32, val: &[u8; 2]) {
         self.data.fields.extend_from_slice(&ftype.to_le_bytes());
         self.data.fields.extend_from_slice(&label_idx.to_le_bytes());
@@ -366,33 +390,45 @@ impl <'a, 'b, W: std::io::Write> Packer<'a, W> {
         self.data.fields.extend_from_slice(&[0u8; 2]);
     }
 
+    /// Pack a field type, field label, and 4 bytes of data into the fields block.
     fn pack_val_4(&mut self, ftype: u32, label_idx: u32, val: &[u8; 4]) {
         self.data.fields.extend_from_slice(&ftype.to_le_bytes());
         self.data.fields.extend_from_slice(&label_idx.to_le_bytes());
         self.data.fields.extend_from_slice(val);
     }
 
+    /// Pack a field type, field label, and data_offset into the fields block.
     fn pack_data_offset(&mut self, ftype: u32, label_idx: u32) {
         self.pack_val_4(ftype, label_idx,
             &(self.data.field_data.len() as u32).to_le_bytes()
         );
     }
 
+    /// Pack a field type, field label, and 8 bytes of data.
+    ///
+    /// The field type, field label, and field_data offset will be stored
+    /// in the fields block, and the 8 bytes of data will be packed into
+    /// the field_data block.
+    ///
     fn pack_val_8(&mut self, ftype: u32, label_idx: u32, val: &[u8; 8]) {
         self.pack_data_offset(ftype, label_idx);
         self.data.field_data.extend_from_slice(val);
         self.data.header.field_data.1 += 8;
     }
 
+    /// Pack an u32 into the field_data block.
     fn pack_data_u32(&mut self, val: u32) {
         self.data.field_data.extend_from_slice(&val.to_le_bytes());
         self.data.header.field_data.1 += 4;
     }
+
+    /// Pack an arbitrary byte array into the field_data block.
     fn pack_data_slice(&mut self, val: &[u8]) {
         self.data.field_data.extend_from_slice(val);
         self.data.header.field_data.1 += val.len() as u32;
     }
 
+    /// Pack an u32 into the list_indices block.
     fn pack_list_u32(&mut self, val: u32) {
         self.data.list_indices.extend_from_slice(&val.to_le_bytes());
         self.data.header.list_indices.1 += 4;
