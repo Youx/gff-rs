@@ -21,11 +21,11 @@ pub struct PackData {
     pub list_indices: Vec<u8>,
 }
 
-pub struct Packer<'a, W: std::io::Write> {
+pub struct Packer<'enc, W: std::io::Write> {
     pub writer: std::io::BufWriter<W>,
     labels: HashMap<String, u32>,
     pub data: PackData,
-    encodings: &'a EncodingFn,
+    encodings: &'enc EncodingFn,
 }
 
 impl PackData {
@@ -42,8 +42,8 @@ impl PackData {
     }
 }
 
-impl <'a, 'b, W: std::io::Write> Packer<'a, W> {
-    pub fn new(writer: W, encodings: &'a EncodingFn) -> Packer<'a, W> {
+impl <'enc, 'input, W: std::io::Write> Packer<'enc, W> {
+    pub fn new(writer: W, encodings: &'enc EncodingFn) -> Packer<'enc, W> {
         Packer {
             writer: std::io::BufWriter::new(writer),
             labels: HashMap::new(),
@@ -112,7 +112,7 @@ impl <'a, 'b, W: std::io::Write> Packer<'a, W> {
     ///
     /// This is used as the entry point of data packing.
     ///
-    pub fn pack(&mut self, input: &'b GffStruct)
+    pub fn pack(&mut self, input: &'input GffStruct)
         -> Result<(), &'static str>
     {
         let mut structs: Vec<&GffStruct> = vec![input];
@@ -139,8 +139,8 @@ impl <'a, 'b, W: std::io::Write> Packer<'a, W> {
     /// Structs/Lists of structs will be pushed in a vec and
     /// packed afterwards.
     ///
-    fn pack_struct(&mut self, input: &'b GffStruct,
-        structs: &mut Vec<&'b GffStruct>, current_st_idx: &mut u32)
+    fn pack_struct(&mut self, input: &'input GffStruct,
+        structs: &mut Vec<&'input GffStruct>, current_st_idx: &mut u32)
         -> Result<(), &'static str>
     {
         /* write struct type */
@@ -228,8 +228,8 @@ impl <'a, 'b, W: std::io::Write> Packer<'a, W> {
     }
 
     /// Pack a struct field name and associated value.
-    fn pack_field(&mut self, field_name: &String, field_value: &'b GffFieldValue,
-        structs: &mut Vec<&'b GffStruct>, current_st_idx: &mut u32)
+    fn pack_field(&mut self, field_name: &String, field_value: &'input GffFieldValue,
+        structs: &mut Vec<&'input GffStruct>, current_st_idx: &mut u32)
         -> Result<u32, &'static str>
     {
         let label_idx = self.pack_label(field_name)?;

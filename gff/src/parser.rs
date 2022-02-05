@@ -47,10 +47,10 @@ pub struct GffParser<'a> {
     encodings: &'a EncodingFn,
 }
 
-type GResult<'a, T> = IResult<&'a [u8], T>;
+type GResult<'io_data, T> = IResult<&'io_data [u8], T>;
 
-impl <'a, 'b> GffParser<'b> {
-    pub fn parse(data: Vec<u8>, encodings: &'b EncodingFn)
+impl <'data, 'parser> GffParser<'parser> {
+    pub fn parse(data: Vec<u8>, encodings: &'parser EncodingFn)
         -> Result<GffStruct, String>
     {
         let mut parser = GffParser {
@@ -64,8 +64,8 @@ impl <'a, 'b> GffParser<'b> {
         Ok(res)
     }
 
-    fn parse_header(&self, data: &'a [u8])
-        -> GResult<'a, Data<'a>>
+    fn parse_header(&self, data: &'data [u8])
+        -> GResult<'data, Data<'data>>
     {
         let header_size: u32 = 14 * 4;
         let mut data_offset = header_size;
@@ -140,8 +140,8 @@ impl <'a, 'b> GffParser<'b> {
         }))
     }
 
-    fn parse_struct(&mut self, data: &'a Data, st_idx: u32)
-        -> GResult<'a, GffStruct>
+    fn parse_struct(&mut self, data: &'data Data, st_idx: u32)
+        -> GResult<'data, GffStruct>
     {
         assert!(st_idx < data.header.structs.1);
 
@@ -171,8 +171,8 @@ impl <'a, 'b> GffParser<'b> {
         }
     }
 
-    fn parse_field(&mut self, data: &'a Data, f_idx: u32)
-        -> GResult<'a, (String, GffFieldValue)>
+    fn parse_field(&mut self, data: &'data Data, f_idx: u32)
+        -> GResult<'data, (String, GffFieldValue)>
     {
         assert!(f_idx < data.header.fields.1);
         let (input, _) = take(12 * f_idx)(data.fields)?;
@@ -264,32 +264,32 @@ impl <'a, 'b> GffParser<'b> {
         Ok((input, (label, value)))
     }
 
-    fn parse_dword64(&self, data: &'a Data, offset: u32)
-        -> GResult<'a, GffFieldValue>
+    fn parse_dword64(&self, data: &'data Data, offset: u32)
+        -> GResult<'data, GffFieldValue>
     {
         let (input, _) = take(offset as usize)(data.field_data)?;
         let (input, val) = le_u64(input)?;
         Ok((input, GffFieldValue::DWord64(val)))
     }
 
-    fn parse_double(&self, data: &'a Data, offset: u32)
-        -> GResult<'a, GffFieldValue>
+    fn parse_double(&self, data: &'data Data, offset: u32)
+        -> GResult<'data, GffFieldValue>
     {
         let (input, _) = take(offset as usize)(data.field_data)?;
         let (input, val) = le_f64(input)?;
         Ok((input, GffFieldValue::Double(val)))
     }
 
-    fn parse_int64(&self, data: &'a Data, offset: u32)
-        -> GResult<'a, GffFieldValue>
+    fn parse_int64(&self, data: &'data Data, offset: u32)
+        -> GResult<'data, GffFieldValue>
     {
         let (input, _) = take(offset as usize)(data.field_data)?;
         let (input, val) = le_i64(input)?;
         Ok((input, GffFieldValue::Int64(val)))
     }
 
-    fn parse_cexostring(&self, data: &'a Data, offset: u32)
-        -> GResult<'a, GffFieldValue>
+    fn parse_cexostring(&self, data: &'data Data, offset: u32)
+        -> GResult<'data, GffFieldValue>
     {
         let encodings = self.encodings;
         let encoding = encodings(None).unwrap();
@@ -302,8 +302,8 @@ impl <'a, 'b> GffParser<'b> {
         Ok((input, GffFieldValue::CExoString(s.to_string())))
     }
 
-    fn parse_cresref(&self, data: &'a Data, offset: u32)
-        -> GResult<'a, GffFieldValue>
+    fn parse_cresref(&self, data: &'data Data, offset: u32)
+        -> GResult<'data, GffFieldValue>
     {
         let (input, _) = take(offset as usize)(data.field_data)?;
         let (input, len) = le_u8(input)?;
@@ -314,8 +314,8 @@ impl <'a, 'b> GffParser<'b> {
         Ok((input, GffFieldValue::CResRef(s)))
     }
 
-    fn parse_cexosloctring(&self, data: &'a Data, offset: u32)
-        -> GResult<'a, GffFieldValue>
+    fn parse_cexosloctring(&self, data: &'data Data, offset: u32)
+        -> GResult<'data, GffFieldValue>
     {
         let (input, _) = take(offset as usize)(data.field_data)?;
         let (input, len) = le_u32(input)?;
@@ -324,8 +324,8 @@ impl <'a, 'b> GffParser<'b> {
 
         let encodings = self.encodings;
 
-        fn parse_substring<'a>(data: &'a [u8], encodings: &EncodingFn)
-            -> GResult<'a, (GffLang, GffGender, String)>
+        fn parse_substring<'data>(data: &'data [u8], encodings: &EncodingFn)
+            -> GResult<'data, (GffLang, GffGender, String)>
         {
             let (input, (lang, gender)) = map_res(le_u32, |val: u32|
                 -> Result<(GffLang, GffGender), num_enum::TryFromPrimitiveError<_>> {
@@ -354,8 +354,8 @@ impl <'a, 'b> GffParser<'b> {
         Ok((input, GffFieldValue::CExoLocString(tlk_ref, locs)))
     }
 
-    fn parse_void(&self, data: &'a Data, offset:u32)
-        -> GResult<'a, GffFieldValue>
+    fn parse_void(&self, data: &'data Data, offset:u32)
+        -> GResult<'data, GffFieldValue>
     {
         let (input, _) = take(offset as usize)(data.field_data)?;
         let (input, len) = le_u32(input)?;
@@ -363,8 +363,8 @@ impl <'a, 'b> GffParser<'b> {
         Ok((input, GffFieldValue::Void(data.to_vec())))
     }
 
-    fn parse_list(&mut self, data: &'a Data, offset: u32)
-        -> GResult<'a, Vec<GffStruct>>
+    fn parse_list(&mut self, data: &'data Data, offset: u32)
+        -> GResult<'data, Vec<GffStruct>>
     {
         assert!(offset % 4 == 0);
 
@@ -378,7 +378,7 @@ impl <'a, 'b> GffParser<'b> {
                     verify(le_u32, |val: &u32| {
                         wself.lock().unwrap().visited_structs.insert(*val)
                     }),
-                    |st_idx: u32| -> GResult<'a, GffStruct> {
+                    |st_idx: u32| -> GResult<'data, GffStruct> {
                         let (input, val) = wself.lock().unwrap().parse_struct(data, st_idx)?;
                         Ok((input, val))
                     }),
@@ -388,15 +388,15 @@ impl <'a, 'b> GffParser<'b> {
         Ok((input, structs))
     }
 
-    fn parse_field_indices(&mut self, data: &'a Data, offset: u32, f_count: usize)
-        -> GResult<'a, HashMap<String, GffFieldValue>>
+    fn parse_field_indices(&mut self, data: &'data Data, offset: u32, f_count: usize)
+        -> GResult<'data, HashMap<String, GffFieldValue>>
     {
         assert!(offset % 4 == 0);
         assert!(offset < data.header.field_indices.1);
         let (input, _) = take(offset as usize)(data.field_indices)?;
         let (input, fields) = count(
             map_res(le_u32, |f_idx: u32|
-                    -> GResult<'a, (String, GffFieldValue)> {
+                    -> GResult<'data, (String, GffFieldValue)> {
                 let (input, val) = self.parse_field(data, f_idx)?;
                 Ok((input, val))
             }),
@@ -406,8 +406,8 @@ impl <'a, 'b> GffParser<'b> {
         Ok((input, fields.into_iter().map(|t| t.1).collect()))
     }
 
-    fn parse_label(&self, data: &'a Data, lbl_idx: u32)
-        -> GResult<'a, String>
+    fn parse_label(&self, data: &'data Data, lbl_idx: u32)
+        -> GResult<'data, String>
     {
         let (input, _) = take(lbl_idx as usize * 16)(data.labels)?;
         let (input, s) = map_res(
