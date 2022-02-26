@@ -1,3 +1,5 @@
+//! Packer for the GFF format
+
 use std::collections::HashMap;
 use std::io::Write;
 use std::borrow::Cow;
@@ -11,6 +13,7 @@ use crate::common::{
     EncodingFn,
 };
 
+/// Data generated from a `GffStruct` by the packer.
 pub struct PackData {
     pub header: GffHeader,
     pub structs: Vec<u8>,
@@ -21,6 +24,7 @@ pub struct PackData {
     pub list_indices: Vec<u8>,
 }
 
+/// GFF format packer
 pub struct Packer<'enc, W: std::io::Write> {
     pub writer: std::io::BufWriter<W>,
     labels: HashMap<String, u32>,
@@ -133,12 +137,11 @@ impl <'enc, 'input, W: std::io::Write> Packer<'enc, W> {
         Ok(())
     }
 
-    ///  Pack a GffStruct.
+    /// Pack a GffStruct.
     ///
     /// This packs all basic field data.
     /// Structs/Lists of structs will be pushed in a vec and
     /// packed afterwards.
-    ///
     fn pack_struct(&mut self, input: &'input GffStruct,
         structs: &mut Vec<&'input GffStruct>, current_st_idx: &mut u32)
         -> Result<(), &'static str>
@@ -197,7 +200,6 @@ impl <'enc, 'input, W: std::io::Write> Packer<'enc, W> {
     ///  Pack a field label into the labels block.
     ///
     /// A field must be <= 16 chars, and will be padded with 0 if shorter.
-    ///
     pub fn pack_label(&mut self, label: &String)
         -> Result<u32, &'static str>
     {
@@ -371,7 +373,6 @@ impl <'enc, 'input, W: std::io::Write> Packer<'enc, W> {
     /// Pack a field type, field label, and 1 byte of data into the fields block.
     ///
     /// The 1 byte of data will be padded with 3 bytes of zeros.
-    ///
     fn pack_val_1(&mut self, ftype: u32, label_idx: u32, val: u8) {
         self.data.fields.extend_from_slice(&ftype.to_le_bytes());
         self.data.fields.extend_from_slice(&label_idx.to_le_bytes());
@@ -382,7 +383,6 @@ impl <'enc, 'input, W: std::io::Write> Packer<'enc, W> {
     /// Pack a field type, field label, and 2 bytes of data into the fields block.
     ///
     /// The 2 bytes of data will be padded with 2 bytes of zeros.
-    ///
     fn pack_val_2(&mut self, ftype: u32, label_idx: u32, val: &[u8; 2]) {
         self.data.fields.extend_from_slice(&ftype.to_le_bytes());
         self.data.fields.extend_from_slice(&label_idx.to_le_bytes());
@@ -409,7 +409,6 @@ impl <'enc, 'input, W: std::io::Write> Packer<'enc, W> {
     /// The field type, field label, and field_data offset will be stored
     /// in the fields block, and the 8 bytes of data will be packed into
     /// the field_data block.
-    ///
     fn pack_val_8(&mut self, ftype: u32, label_idx: u32, val: &[u8; 8]) {
         self.pack_data_offset(ftype, label_idx);
         self.data.field_data.extend_from_slice(val);
@@ -439,13 +438,19 @@ impl <'enc, 'input, W: std::io::Write> Packer<'enc, W> {
 
 /* {{{ PackField implementations. */
 
-/* Trait to pack field */
+/// Trait to directly pack a struct's field.
+///
+/// This trait does not make use of the intermediary
+/// representation ([`GffFieldValue`]).
 pub trait PackField<'a, W: std::io::Write> {
     fn pack_field(&'a self, label: String, packer: &mut Packer<W>,
         structs: &mut Vec<&'a dyn PackStruct<W>>, st_idx: &mut u32) -> ();
 }
 
-/* Trait to pack struct */
+/// Trait to directly pack a struct
+///
+/// This trait does not make use of the intermediary
+/// representation ([`GffStruct`]).
 pub trait PackStruct<'a, W: std::io::Write> {
     fn pack(&'a self, data: &mut Packer<W>, structs: &mut Vec<&'a dyn PackStruct<W>>,
         st_idx: &mut u32)

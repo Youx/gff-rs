@@ -1,3 +1,5 @@
+//! Common types used by GFF
+
 extern crate num_enum;
 
 use encoding_rs::{
@@ -13,8 +15,11 @@ use std::collections::HashMap;
 
 /* {{{ GFF header */
 
+/// Tuple containing an offset, and a count
+///
+/// This is used in the [`GffHeader`] to delimitate
+/// different zones of packed data.
 #[derive(Debug)]
-/** Tuple containing an offset, and a count */
 pub struct OffsetCount (pub u32, pub u32);
 
 impl OffsetCount {
@@ -23,6 +28,7 @@ impl OffsetCount {
     }
 }
 
+/// Unpacked version of the GFF header.
 #[derive(Debug)]
 pub struct GffHeader {
     pub gff_type: [u8; 4],
@@ -52,6 +58,16 @@ impl GffHeader {
 /* }}} */
 /* {{{ Gff Structs and fields */
 
+/// Representation of a player language id
+///
+/// This is used to localize dialog strings
+/// based on the player's selected language.
+///
+/// (see [`GffFieldValue::CExoLocString`])
+///
+/// Note that these IDs are only valid for
+/// Neverwinter Nights, other games may use
+/// other IDs.
 #[derive(Debug, std::cmp::Eq, PartialEq,
     std::hash::Hash, num_enum::TryFromPrimitive,
     Copy, Clone)]
@@ -69,6 +85,12 @@ pub enum GffLang {
     Japanese     = 131,
 }
 
+/// Representation of a character gender
+///
+/// This is used to localize dialog strings
+/// based on the player's character choice.
+///
+/// (see [`GffFieldValue::CExoLocString`])
 #[derive(Debug, std::cmp::Eq, PartialEq,
     std::hash::Hash, num_enum::TryFromPrimitive,
     Copy, Clone)]
@@ -78,27 +100,48 @@ pub enum GffGender {
     Female = 1,
 }
 
+/// Intermediary representation of a packed struct field
 #[derive(Debug, PartialEq)]
 pub enum GffFieldValue {
+    /// A basic [`u8`] value
     Byte(u8),
+    /// A localized string
     CExoLocString(u32, HashMap<(GffLang, GffGender), String>),
+    /// A non-localized string
     CExoString(String),
+    /// A basic [`i8`] value
     Char(i8),
+    /// A Resource Reference string
     CResRef(String),
+    /// A basic [`f64`] value
     Double(f64),
+    /// A basic [`u32`] value
     DWord(u32),
+    /// A basic [`u64`] value
     DWord64(u64),
+    /// A basic [`f32`] value
     Float(f32),
+    /// A basic [`i32`] value
     Int(i32),
+    /// A basic [`i64`] value
     Int64(i64),
+    /// A basic [`i16`] value
     Short(i16),
+    /// Raw data
     Void(Vec<u8>),
+    /// A basic [`u16`] value
     Word(u16),
+    /// Another struct
     Struct(GffStruct),
+    /// A list of structs
+    ///
+    /// Note: vectors of other types cannot be packed
+    /// and must be wrapped into a struct.
     List(Vec<GffStruct>),
     Invalid,
 }
 
+/// Intermediary representation of a packed struct
 #[derive(PartialEq)]
 pub struct GffStruct {
     pub st_type: u32,
@@ -121,10 +164,15 @@ impl std::fmt::Debug for GffStruct {
 /* }}} */
 /* {{{ Encodings */
 
+/// Enum representing various game languages and their encodings
 pub enum Encodings {
     NeverwinterNights,
 }
 
+/// Callback to match a language to the appropriate encoder/decoder
+///
+/// For a [`GffFieldValue::CExoLocString`], provide `Some(language_id)`
+/// For a [`GffFieldValue::CExoString`], provide `None`
 pub type EncodingFn = dyn Fn(Option<u32>)
 -> Result<&'static encoding_rs::Encoding, &'static str>;
 
@@ -157,21 +205,27 @@ impl std::ops::Deref for Encodings {
 /* }}} */
 /* {{{ Public traits */
 
-/** Deserialize trait.
- *
- * This trait should be implemented for every structure
- * that can be deserialized from GFFStruct.
- */
+/// Deserialize trait.
+///
+/// Implement for any structure that should be deserializable from
+/// [`GffStruct`] intermediary representation.
+///
+/// This trait can be automatically derived using
+/// `gff_derive::GffStruct`, as long as all fields of
+/// the struct implement [`crate::common::Deserialize`].
 pub trait Deserialize {
     fn deserialize(from: &GffStruct)
         -> Result<Self, &'static str> where Self: std::marker::Sized;
 }
 
-/** Serialize trait.
- *
- * This trait should be implemented for every structure
- * that can be serialized into a GFFStruct.
- */
+/// Serialize trait.
+///
+/// Implement for any structure that should be serializable to
+/// [`GffStruct`] intermediary representation.
+///
+/// This trait can be automatically derived using
+/// `gff_derive::GffStruct`, as long as all fields of
+/// the struct implement [`crate::common::Serialize`]
 pub trait Serialize {
     fn serialize(&self)
         -> Result<GffStruct, &'static str> where Self: std::marker::Sized;

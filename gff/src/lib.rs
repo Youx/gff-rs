@@ -1,3 +1,5 @@
+//! Library for Bioware GFF format parser/packer
+
 extern crate encoding_rs;
 
 pub mod common;

@@ -1,3 +1,5 @@
+//! Implementation of serialization for basic types
+
 use crate::common::{
     GffFieldValue,
     GffStruct,

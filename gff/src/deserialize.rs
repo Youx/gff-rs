@@ -1,3 +1,5 @@
+//! Implementation of deserialization for basic types
+
 use crate::common::{
     GffFieldValue,
     Deserialize,

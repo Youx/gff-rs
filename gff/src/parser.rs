@@ -1,3 +1,5 @@
+//! Parser for the GFF format
+
 use std::convert::TryFrom;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -30,7 +32,10 @@ use crate::common::{
     EncodingFn,
 };
 
-/** Header and data blocks of GFF file. */
+/// Header and data blocks of GFF file.
+///
+/// Except for the header, all data zones just borrow
+/// from the original packed data buffer for safety.
 struct Data<'a> {
     header: GffHeader,
     structs: &'a [u8],
@@ -41,15 +46,18 @@ struct Data<'a> {
     list_indices: &'a [u8],
 }
 
+/// GFF format parser
 pub struct GffParser<'a> {
-    /* ensure we only parse a struct once, loops are not allowed */
+    /// This HashSet ensures we only, to forbid infinite loops.
     visited_structs: HashSet<u32>,
+    /// String encoding callback.
     encodings: &'a EncodingFn,
 }
 
 type GResult<'io_data, T> = IResult<&'io_data [u8], T>;
 
 impl <'data, 'parser> GffParser<'parser> {
+    /// Parse a byte array into [`GffStruct`] intermediary representation
     pub fn parse(data: Vec<u8>, encodings: &'parser EncodingFn)
         -> Result<GffStruct, String>
     {
@@ -64,6 +72,10 @@ impl <'data, 'parser> GffParser<'parser> {
         Ok(res)
     }
 
+    /// Parse the GFF header
+    ///
+    /// This also borrows the different zones,
+    /// and ensures they are contiguous.
     fn parse_header(&self, data: &'data [u8])
         -> GResult<'data, Data<'data>>
     {
@@ -140,6 +152,7 @@ impl <'data, 'parser> GffParser<'parser> {
         }))
     }
 
+    /// Parse a GFF struct into intermediary representation
     fn parse_struct(&mut self, data: &'data Data, st_idx: u32)
         -> GResult<'data, GffStruct>
     {
@@ -171,6 +184,7 @@ impl <'data, 'parser> GffParser<'parser> {
         }
     }
 
+    /// Parse a GFF field into intermediary representation
     fn parse_field(&mut self, data: &'data Data, f_idx: u32)
         -> GResult<'data, (String, GffFieldValue)>
     {
@@ -288,6 +302,7 @@ impl <'data, 'parser> GffParser<'parser> {
         Ok((input, GffFieldValue::Int64(val)))
     }
 
+    /// Parse a non-localized string, into intermediary representation
     fn parse_cexostring(&self, data: &'data Data, offset: u32)
         -> GResult<'data, GffFieldValue>
     {
@@ -302,6 +317,7 @@ impl <'data, 'parser> GffParser<'parser> {
         Ok((input, GffFieldValue::CExoString(s.to_string())))
     }
 
+    /// Parse a reference string, into intermediary representation
     fn parse_cresref(&self, data: &'data Data, offset: u32)
         -> GResult<'data, GffFieldValue>
     {
@@ -314,6 +330,7 @@ impl <'data, 'parser> GffParser<'parser> {
         Ok((input, GffFieldValue::CResRef(s)))
     }
 
+    /// Parse a localized string, into intermediary representation
     fn parse_cexosloctring(&self, data: &'data Data, offset: u32)
         -> GResult<'data, GffFieldValue>
     {
@@ -354,6 +371,7 @@ impl <'data, 'parser> GffParser<'parser> {
         Ok((input, GffFieldValue::CExoLocString(tlk_ref, locs)))
     }
 
+    /// Parse raw data from a data offset
     fn parse_void(&self, data: &'data Data, offset:u32)
         -> GResult<'data, GffFieldValue>
     {
@@ -363,6 +381,7 @@ impl <'data, 'parser> GffParser<'parser> {
         Ok((input, GffFieldValue::Void(data.to_vec())))
     }
 
+    /// Parse a list of structs from a list indices offset
     fn parse_list(&mut self, data: &'data Data, offset: u32)
         -> GResult<'data, Vec<GffStruct>>
     {
@@ -388,6 +407,7 @@ impl <'data, 'parser> GffParser<'parser> {
         Ok((input, structs))
     }
 
+    /// Parse multiple fields from a field indices offset
     fn parse_field_indices(&mut self, data: &'data Data, offset: u32, f_count: usize)
         -> GResult<'data, HashMap<String, GffFieldValue>>
     {
@@ -406,6 +426,7 @@ impl <'data, 'parser> GffParser<'parser> {
         Ok((input, fields.into_iter().map(|t| t.1).collect()))
     }
 
+    /// Parse a field label from its index
     fn parse_label(&self, data: &'data Data, lbl_idx: u32)
         -> GResult<'data, String>
     {
