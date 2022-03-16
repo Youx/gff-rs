@@ -63,7 +63,7 @@ impl <'data, 'parser> GffParser<'parser> {
     {
         let mut parser = GffParser {
             visited_structs: HashSet::new(),
-            encodings: encodings,
+            encodings,
         };
         let (_, data) = parser.parse_header(&data)
             .map_err(|e| format!("error parsing header: {:#?}", e))?;
@@ -129,7 +129,7 @@ impl <'data, 'parser> GffParser<'parser> {
         )))(header_data)?;
         let (input, list_indices) = all_consuming(take(li_count))(input)?;
 
-        let parsed_header = GffHeader {
+        let header = GffHeader {
             gff_type: [gff_type[0], gff_type[1], gff_type[2], gff_type[3]],
             version: [version[0], version[1],version[2],version[3]],
             structs: OffsetCount(st_offset, st_count),
@@ -142,13 +142,13 @@ impl <'data, 'parser> GffParser<'parser> {
 
 
         Ok((input, Data {
-            header: parsed_header,
-            structs: structs,
-            fields: fields,
-            labels: labels,
-            field_data: field_data,
-            field_indices: field_indices,
-            list_indices: list_indices,
+            header,
+            structs,
+            fields,
+            labels,
+            field_data,
+            field_indices,
+            list_indices,
         }))
     }
 
@@ -163,13 +163,13 @@ impl <'data, 'parser> GffParser<'parser> {
 
         match field_count {
             0 => Ok((input, GffStruct {
-                st_type: st_type,
+                st_type,
                 fields: HashMap::new(),
             })),
             1 => {
                 let (_, field) = self.parse_field(data, field_offset)?;
                 Ok((b"", GffStruct {
-                    st_type: st_type,
+                    st_type,
                     fields: vec![field].into_iter().collect(),
                 }))
             },
@@ -177,8 +177,8 @@ impl <'data, 'parser> GffParser<'parser> {
                 let (input, fields) = self.parse_field_indices(
                     data, field_offset, field_count as usize)?;
                 Ok((input, GffStruct {
-                    st_type: st_type,
-                    fields: fields,
+                    st_type,
+                    fields,
                 }))
             },
         }

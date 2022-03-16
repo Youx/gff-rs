@@ -51,7 +51,7 @@ impl<T> std::convert::TryFrom<&GffFieldValue> for Vec<T> where T: Deserialize {
         match value {
             GffFieldValue::List(v) => {
                 v.iter()
-                    .map(|x| { T::deserialize(&x) })
+                    .map(|x| { T::deserialize(x) })
                     .collect::<Result<Vec<T>, Self::Error>>()
             },
             _ => Err("Expected GffFieldValue::List"),

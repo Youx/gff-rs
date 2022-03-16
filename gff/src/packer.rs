@@ -35,7 +35,7 @@ pub struct Packer<'enc, W: std::io::Write> {
 impl PackData {
     fn new() -> Self {
         PackData {
-            header: GffHeader::new(),
+            header: GffHeader::default(),
             structs: vec![],
             fields: vec![],
             labels: vec![],
@@ -52,7 +52,7 @@ impl <'enc, 'input, W: std::io::Write> Packer<'enc, W> {
             writer: std::io::BufWriter::new(writer),
             labels: HashMap::new(),
             data: PackData::new(),
-            encodings: encodings,
+            encodings,
         }
     }
 
@@ -86,27 +86,27 @@ impl <'enc, 'input, W: std::io::Write> Packer<'enc, W> {
 
     fn write(&mut self) -> Result<(), std::io::Error> {
         /* write header */
-        self.writer.write(&self.data.header.gff_type)?;
-        self.writer.write(&self.data.header.version)?;
-        self.writer.write(&self.data.header.structs.0.to_le_bytes())?;
-        self.writer.write(&self.data.header.structs.1.to_le_bytes())?;
-        self.writer.write(&self.data.header.fields.0.to_le_bytes())?;
-        self.writer.write(&self.data.header.fields.1.to_le_bytes())?;
-        self.writer.write(&self.data.header.labels.0.to_le_bytes())?;
-        self.writer.write(&self.data.header.labels.1.to_le_bytes())?;
-        self.writer.write(&self.data.header.field_data.0.to_le_bytes())?;
-        self.writer.write(&self.data.header.field_data.1.to_le_bytes())?;
-        self.writer.write(&self.data.header.field_indices.0.to_le_bytes())?;
-        self.writer.write(&self.data.header.field_indices.1.to_le_bytes())?;
-        self.writer.write(&self.data.header.list_indices.0.to_le_bytes())?;
-        self.writer.write(&self.data.header.list_indices.1.to_le_bytes())?;
+        self.writer.write_all(&self.data.header.gff_type)?;
+        self.writer.write_all(&self.data.header.version)?;
+        self.writer.write_all(&self.data.header.structs.0.to_le_bytes())?;
+        self.writer.write_all(&self.data.header.structs.1.to_le_bytes())?;
+        self.writer.write_all(&self.data.header.fields.0.to_le_bytes())?;
+        self.writer.write_all(&self.data.header.fields.1.to_le_bytes())?;
+        self.writer.write_all(&self.data.header.labels.0.to_le_bytes())?;
+        self.writer.write_all(&self.data.header.labels.1.to_le_bytes())?;
+        self.writer.write_all(&self.data.header.field_data.0.to_le_bytes())?;
+        self.writer.write_all(&self.data.header.field_data.1.to_le_bytes())?;
+        self.writer.write_all(&self.data.header.field_indices.0.to_le_bytes())?;
+        self.writer.write_all(&self.data.header.field_indices.1.to_le_bytes())?;
+        self.writer.write_all(&self.data.header.list_indices.0.to_le_bytes())?;
+        self.writer.write_all(&self.data.header.list_indices.1.to_le_bytes())?;
 
-        self.writer.write(&self.data.structs)?;
-        self.writer.write(&self.data.fields)?;
-        self.writer.write(&self.data.labels)?;
-        self.writer.write(&self.data.field_data)?;
-        self.writer.write(&self.data.field_indices)?;
-        self.writer.write(&self.data.list_indices)?;
+        self.writer.write_all(&self.data.structs)?;
+        self.writer.write_all(&self.data.fields)?;
+        self.writer.write_all(&self.data.labels)?;
+        self.writer.write_all(&self.data.field_data)?;
+        self.writer.write_all(&self.data.field_indices)?;
+        self.writer.write_all(&self.data.list_indices)?;
         Ok(())
     }
 
@@ -128,7 +128,7 @@ impl <'enc, 'input, W: std::io::Write> Packer<'enc, W> {
                 break;
             }
             let struct_to_write = structs.remove(0);
-            self.pack_struct(&struct_to_write, &mut structs, &mut current_st_idx)?;
+            self.pack_struct(struct_to_write, &mut structs, &mut current_st_idx)?;
         }
 
         self.finalize();
@@ -179,7 +179,7 @@ impl <'enc, 'input, W: std::io::Write> Packer<'enc, W> {
         let mut field_indices = vec![];
         for (field, value) in &input.fields {
             let field_id = self.pack_field(
-                &field, &value, structs, current_st_idx
+                field, value, structs, current_st_idx
             )?;
 
             field_indices.push(field_id);
@@ -200,19 +200,19 @@ impl <'enc, 'input, W: std::io::Write> Packer<'enc, W> {
     ///  Pack a field label into the labels block.
     ///
     /// A field must be <= 16 chars, and will be padded with 0 if shorter.
-    pub fn pack_label(&mut self, label: &String)
+    pub fn pack_label(&mut self, label: &str)
         -> Result<u32, &'static str>
     {
         let max_label_idx = self.labels.len();
         let label_idx = self.labels
-            .entry(label.clone())
+            .entry(label.to_string())
             .or_insert(max_label_idx as u32);
 
         /* new label needs to be written */
         if *label_idx == self.data.header.labels.1 {
             self.data.header.labels.1 += 1;
 
-            let label_data = label.clone().into_bytes();
+            let label_data = label.to_string().into_bytes();
             if label_data.len() > 16 {
                 return Err("label too long");
             }
@@ -230,7 +230,7 @@ impl <'enc, 'input, W: std::io::Write> Packer<'enc, W> {
     }
 
     /// Pack a struct field name and associated value.
-    fn pack_field(&mut self, field_name: &String, field_value: &'input GffFieldValue,
+    fn pack_field(&mut self, field_name: &str, field_value: &'input GffFieldValue,
         structs: &mut Vec<&'input GffStruct>, current_st_idx: &mut u32)
         -> Result<u32, &'static str>
     {
@@ -300,7 +300,7 @@ impl <'enc, 'input, W: std::io::Write> Packer<'enc, W> {
                 } else {
                     self.data.field_data.push(str_data.len() as u8);
                     self.data.header.field_data.1 += 1;
-                    self.pack_data_slice(&str_data);
+                    self.pack_data_slice(str_data);
                     Ok(self.data.header.fields.1 - 1)
                 }
             }
@@ -312,7 +312,7 @@ impl <'enc, 'input, W: std::io::Write> Packer<'enc, W> {
                 let encodings = self.encodings;
 
                 let val_encoded: Vec<(GffLang, GffGender, Cow<'_, [u8]>)> =
-                    val.into_iter().map(|((lang, gender), s)| {
+                    val.iter().map(|((lang, gender), s)| {
                         let encoding = encodings(Some(*lang as u32)).unwrap();
                         let (s_vec, _, _) = encoding.encode(s);
                         // gender-lang + length + string
@@ -352,7 +352,7 @@ impl <'enc, 'input, W: std::io::Write> Packer<'enc, W> {
                 self.pack_val_4(14, label_idx,
                     &(*current_st_idx).to_le_bytes()
                 );
-                structs.push(&st);
+                structs.push(st);
                 Ok(self.data.header.fields.1 - 1)
             }
             GffFieldValue::List(vec) => {
@@ -362,7 +362,7 @@ impl <'enc, 'input, W: std::io::Write> Packer<'enc, W> {
                 for st in vec {
                     *current_st_idx += 1;
                     self.pack_list_u32(*current_st_idx);
-                    structs.push(&st);
+                    structs.push(st);
                 }
                 Ok(self.data.header.fields.1 - 1)
             }
@@ -444,7 +444,7 @@ impl <'enc, 'input, W: std::io::Write> Packer<'enc, W> {
 /// representation ([`GffFieldValue`]).
 pub trait PackField<'a, W: std::io::Write> {
     fn pack_field(&'a self, label: String, packer: &mut Packer<W>,
-        structs: &mut Vec<&'a dyn PackStruct<W>>, st_idx: &mut u32) -> ();
+        structs: &mut Vec<&'a dyn PackStruct<W>>, st_idx: &mut u32);
 }
 
 /// Trait to directly pack a struct
@@ -453,8 +453,7 @@ pub trait PackField<'a, W: std::io::Write> {
 /// representation ([`GffStruct`]).
 pub trait PackStruct<'a, W: std::io::Write> {
     fn pack(&'a self, data: &mut Packer<W>, structs: &mut Vec<&'a dyn PackStruct<W>>,
-        st_idx: &mut u32)
-        -> ();
+            st_idx: &mut u32);
 }
 
 macro_rules! pack_field_1 {
@@ -462,7 +461,6 @@ macro_rules! pack_field_1 {
         impl<'a, W: std::io::Write> PackField<'a, W> for $type {
             fn pack_field(&'a self, label: String, packer: &mut Packer<W>,
                 _structs: &mut Vec<&'a dyn PackStruct<W>>, _st_idx: &mut u32)
-                -> ()
             {
                 let label_idx = packer.pack_label(&label).unwrap();
                 packer.pack_val_1(1, label_idx, *self as u8);
@@ -479,7 +477,6 @@ macro_rules! pack_field_n {
         impl<'a, W: std::io::Write> PackField<'a, W> for $type {
             fn pack_field(&'a self, label: String, packer: &mut Packer<W>,
                 _structs: &mut Vec<&'a dyn PackStruct<W>>, _st_idx: &mut u32)
-                -> ()
             {
                 let label_idx = packer.pack_label(&label).unwrap();
                 packer.$pack_fn(1, label_idx, &self.to_le_bytes());
@@ -500,7 +497,6 @@ pack_field_n!(f64, pack_val_8, 9);
 impl<'a, W: std::io::Write> PackField<'a, W> for String {
     fn pack_field(&'a self, label: String, packer: &mut Packer<W>,
         _structs: &mut Vec<&'a dyn PackStruct<W>>, _st_idx: &mut u32)
-        -> ()
     {
         let encodings = packer.encodings;
         let encoding = encodings(None).unwrap();

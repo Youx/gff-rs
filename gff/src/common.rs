@@ -19,14 +19,8 @@ use std::collections::HashMap;
 ///
 /// This is used in the [`GffHeader`] to delimitate
 /// different zones of packed data.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct OffsetCount (pub u32, pub u32);
-
-impl OffsetCount {
-    pub fn new() -> Self {
-        OffsetCount(0, 0)
-    }
-}
 
 /// Unpacked version of the GFF header.
 #[derive(Debug)]
@@ -41,17 +35,17 @@ pub struct GffHeader {
     pub list_indices: OffsetCount,
 }
 
-impl GffHeader {
-    pub fn new() -> Self {
+impl Default for GffHeader {
+    fn default() -> Self {
         GffHeader {
             gff_type: *b"    ",
             version: *b"V3.2",
-            structs: OffsetCount::new(),
-            fields: OffsetCount::new(),
-            labels: OffsetCount::new(),
-            field_data: OffsetCount::new(),
-            field_indices: OffsetCount::new(),
-            list_indices: OffsetCount::new(),
+            structs: OffsetCount::default(),
+            fields: OffsetCount::default(),
+            labels: OffsetCount::default(),
+            field_data: OffsetCount::default(),
+            field_indices: OffsetCount::default(),
+            list_indices: OffsetCount::default(),
         }
     }
 }
