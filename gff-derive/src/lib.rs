@@ -24,9 +24,9 @@ pub fn derive_gff_struct(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
     // parse attribute GFFStructId
-    let attribute = input.attrs.iter().filter(
+    let attribute = input.attrs.iter().find(
         |a| a.path.segments.len() == 1 && a.path.segments[0].ident == "GFFStructId"
-    ).nth(0).expect("GFFStructId attribute required for deriving GFFStruct");
+    ).expect("GFFStructId attribute required for deriving GFFStruct");
     let parameters: GFFStructId = syn::parse2(attribute.tokens.clone())
         .expect("Invalid GFFStructId attribute!");
 
@@ -100,8 +100,7 @@ pub fn derive_gff_struct(input: TokenStream) -> TokenStream {
                     };
 
                     // Hand the output tokens back to the compiler
-                    let res = TokenStream::from(expanded);
-                    res
+                    TokenStream::from(expanded)
                 }
             }
         }
@@ -114,9 +113,9 @@ pub fn derive_gff_struct_pack(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
     // parse attribute GFFStructId
-    let attribute = input.attrs.iter().filter(
+    let attribute = input.attrs.iter().find(
         |a| a.path.segments.len() == 1 && a.path.segments[0].ident == "GFFStructId"
-    ).nth(0).expect("GFFStructId attribute required for deriving GFFStruct");
+    ).expect("GFFStructId attribute required for deriving GFFStruct");
     let parameters: GFFStructId = syn::parse2(attribute.tokens.clone())
         .expect("Invalid GFFStructId attribute!");
 
@@ -198,8 +197,7 @@ pub fn derive_gff_struct_pack(input: TokenStream) -> TokenStream {
                     };
 
                     // Hand the output tokens back to the compiler
-                    let res = TokenStream::from(expanded);
-                    res
+                    TokenStream::from(expanded)
                 }
             }
         }
